@@ -54,3 +54,4 @@ next-env.d.ts
 /public/anatomy/*.glb
 /public/anatomy/manifest.json
 /public/anatomy/report.md
+/public/anatomy/structures.json

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useRef, useState } from "react";
 import { PAPERS, type PaperId } from "@/content/taxonomy";
 import { formatDate } from "@/lib/copy";
@@ -46,6 +47,15 @@ function Settings({ data, content }: Ready) {
               ))}
             </ul>
           )}
+        </section>
+        <section aria-labelledby="about-anatomy">
+          <h2 id="about-anatomy" className="text-lead font-bold">
+            3D anatomy
+          </h2>
+          <p className="mt-2 max-w-[60ch] text-ink-soft">
+            A body you can turn and tap, linked to your A&amp;P book&apos;s glossary.{" "}
+            <Link href="/anatomy">Open Anatomy</Link> · <Link href="/anatomy/credits">Credits for the 3D models</Link>
+          </p>
         </section>
       </div>
     </div>

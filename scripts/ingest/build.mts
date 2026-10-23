@@ -269,7 +269,8 @@ for (const g of glossary) {
     glossaryUnplaced++;
     continue;
   }
-  const key = fingerprint(`${g.term} ${g.definition}`);
+  // Keyed on the term as first imported, so restoring a term's lost letters keeps her progress on its card.
+  const key = fingerprint(`${g.textLayer ?? g.term} ${g.definition}`);
   if (cardKeys.has(key)) continue;
   cardKeys.add(key);
   const printed = g.pages.map((p) => p - MACK_PAGE_OFFSET);

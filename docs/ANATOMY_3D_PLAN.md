@@ -4,9 +4,34 @@ An in-app 3D body she can turn, peel and tap, tied to her own A&P book, her lect
 Read `PRODUCT.md` and `DESIGN.md` first: the same principles apply here (calm, one thing at a time, iPad-first,
 honest), and every colour comes from the theme tokens so all six themes keep working.
 
-Status: **phase 0 built (Oct 24, 2026), waiting for the iPad check.** `npm run anatomy` converts the skeleton and the
-heart; `/anatomy` shows them (tap to name, fade the rest, Reset view; add `?fps` for a frame counter). Not yet in the
-sidebar. The book content it builds on is already in the app (see "What already exists").
+Status: **phase 1 built (Oct 24, 2026); phase 0 still waits for the iPad frame-rate check.** `npm run anatomy` builds
+all 11 system files (1,654 structures, 14.5 MB), `structures.json` and a report; `/anatomy` has a chip per system
+(only the skeleton on at first), arteries red and veins blue, tap to name, Reset view, `?fps`. It's in the sidebar and
+the tablet top bar; phones reach it from Settings. Credits at `/anatomy/credits`. Next: phase 2 (the tap card with the
+book's definition, x-ray, search, list mode, deep links).
+
+### What phase 1 found
+
+- **Use the IS-A download, not PART-OF.** `isa_BP3D_4.0_obj_99.zip` (143 MB) has every PART-OF mesh (same geometry,
+  different header) plus ~1,000 more: 323 muscles, 26 nerves, the spleen, testes, laryngeal cartilages. Both concept
+  lists are still read: IS-A says what a mesh *is* ("muscle organ", "artery"), PART-OF what it's *in* ("heart").
+- **What BodyParts3D doesn't have:** female reproductive organs (it's a male body), lung tissue (lungs are their
+  bronchial trees and vessels), thyroid gland, lymph nodes, tonsils, spinal cord (only its central canal), spinal
+  nerves, ear beyond the external ear. The credits page says so.
+- **Systems are rules, not roots** (`scripts/anatomy/systems.mts`): each mesh goes to the first system whose rule
+  matches its kinds, what it's part of, or its name; only hair and skin are left out. Display order is separate.
+- **Normals are not stored.** They split vertices along seams (muscles had as many vertices as triangles), which
+  stopped simplification. Without them the files are a third the size; the viewer computes smooth normals on load.
+- **Glossary links: 66% (1,093 of 1,654), not the 80% hoped for.** By system: skeleton 97%, heart 95%, digestive 76%,
+  muscles 71%, airways 57%, brain & nerves 55%, vessels 50%. What's left isn't in her book's glossary (the stomach,
+  rectum, insula and most named arterial branches have no entry). Matches are only made, never invented, and each
+  says how (`exact`, `general` = a broader term, `part` = the larger structure); a broader or larger term must be one
+  the book places in the same body system, because words like "canaliculi", "raphe" and "rectus" mean something else
+  there. Hand-only terms (lumbricals, interossei) are kept off the foot. Tests: `scripts/anatomy/__tests__/`.
+- **Glossary bug fixed on the way:** the PDF's text layer drops one letter per fi/fl/ff ligature at the end of a bold
+  glossary term ("flexor hallucis longu"). `restoreLigatureLoss` in `parsers/mack.mts` puts them back from the book's
+  own text; 116 terms fixed, 74 of which now have index pages and became flashcards. Card ids are keyed on the term as
+  first imported (`textLayer`), so her progress is kept (one card, "extracellular fluid", merged with its duplicate).
 
 ### What phase 0 found (read before phase 1)
 
@@ -80,7 +105,9 @@ notebook.
 - License: **CC BY 4.0** (changed from CC BY-SA 2.1 JP in Feb 2025). Required credit, verbatim:
   "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International".
 - Download from https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html :
-  - `partof_BP3D_4.0_obj_99.zip` (62 MB, OBJ meshes at 99% reduction, PART-OF tree). Start here.
+  - `isa_BP3D_4.0_obj_99.zip` (143 MB, every mesh at 99% reduction). Unzip it in `anatomy-src/`. (Phase 0 used
+    `partof_BP3D_4.0_obj_99.zip`, a subset; it's no longer needed.)
+  - `isa_element_parts.txt` as well as the PART-OF lists below.
   - `partof_parts_list_e.txt`, `partof_inclusion_relation_list.txt`, `partof_element_parts.txt` (tab-separated:
     FMA concept id, English name, element file ids).
   - Only ELEMENT parts have meshes; a COMPOUND part ("heart", "skeletal system") is the sum of its elements.
@@ -95,6 +122,11 @@ private use, but list them on the credits page and don't use them if the app eve
 ---
 
 ## 4. Build pipeline (`scripts/anatomy/`)
+
+> As built (phase 1): `source.mts` reads the downloads, `systems.mts` holds the system rules (not roots, see "What
+> phase 1 found"), `terms.mts` links names to the glossary, and `convert.mts` writes the GLBs, `structures.json`,
+> `manifest.json` and `report.md`. There's no separate `structures.mts`; credits are the `/anatomy/credits` page. The
+> original plan below is kept for reference.
 
 Node 22 `.mts` scripts, same style as `scripts/ingest/`. Add `npm run anatomy`.
 
@@ -185,7 +217,7 @@ the model changes.
 | Phase | Work | Done when |
 |---|---|---|
 | 0. Spike | Convert Skeletal + heart only; bare `/anatomy` page | Runs at ≥ 45 fps on her iPad, tap selects the right bone, page weight < 8 MB. If not, drop to fewer muscles/vessels or try three's `BatchedMesh` before going further. |
-| 1. Pipeline | `npm run anatomy` builds all systems, `structures.json`, report, credits | ≥ 80% of structures matched to a glossary term; report lists the rest |
+| 1. Pipeline | `npm run anatomy` builds all systems, `structures.json`, report, credits | ≥ 80% of structures matched to a glossary term; report lists the rest (**done; 66%, see above**) |
 | 2. Viewer | systems, peel/x-ray, tap card, search, list mode, deep links, topic-page links | Typecheck, lint, tests pass; checked at iPad and phone sizes; no console errors |
 | 3. Study | "Practice this", identify quiz, v3 storage + migration test, notebook | Tests for the quiz queue and the migration |
 | 4. Nursing overlays | injection sites, auscultation points, quadrants (hand-placed pins) | She has checked every pin |

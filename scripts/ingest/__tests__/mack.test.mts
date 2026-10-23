@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pageLines, parseKey, parseMack } from "../parsers/mack.mts";
+import { pageLines, parseKey, parseMack, restoreLigatureLoss } from "../parsers/mack.mts";
 
 /** A tiny pdftohtml page: two columns at x=50 and x=500 on a 972-wide page. Text here is made up, not from the book. */
 function page(n: number, rows: [number, number, string][]): { pdfPage: number; lines: string[] } {
@@ -71,5 +71,16 @@ describe("Mack A&P book parser", () => {
     expect(qs[0].answer).toEqual(["A"]);
     expect(qs[0].topicId).toBe("int-ap-foundations");
     expect(qs[0].where).toBe("§2.6 Questions, p. 42");
+  });
+
+  it("puts back the letters a ligature cost, from the book's own text, and only then", () => {
+    const book = "the flexor hallucis longus bends the toe. a deep vein, another vein, and the veins. fluid (csf) flows.";
+    expect(restoreLigatureLoss("flexor hallucis longu", book)).toBe("flexor hallucis longus");
+    // Not used whole in the book: complete the last word with the commonest completion of that length.
+    expect(restoreLigatureLoss("fibular vei", book)).toBe("fibular vein");
+    expect(restoreLigatureLoss("cerebrospinal fluid (CSF", book)).toBe("cerebrospinal fluid (CSF)");
+    // No ligature, so no letter was lost; nothing in the book to complete it from.
+    expect(restoreLigatureLoss("tibia", book)).toBeNull();
+    expect(restoreLigatureLoss("fibrous laye", book)).toBeNull();
   });
 });

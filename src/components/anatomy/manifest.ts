@@ -14,7 +14,9 @@ const listeners = new Set<() => void>();
 async function load() {
   try {
     const res = await fetch("/anatomy/manifest.json");
-    snapshot = res.ok ? { status: "ready", manifest: (await res.json()) as AnatomyManifest } : { status: "missing" };
+    const manifest = res.ok ? ((await res.json()) as AnatomyManifest) : null;
+    // A phase-0 manifest (version 1) has no system order: treat it as not built yet.
+    snapshot = manifest?.version === 2 ? { status: "ready", manifest } : { status: "missing" };
   } catch {
     snapshot = { status: "missing" };
   }

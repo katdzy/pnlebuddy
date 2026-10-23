@@ -6,7 +6,7 @@ import { PAPERS } from "@/content/taxonomy";
 import { iconFor, THEMES, todayIcon, toneFor, type LookKey } from "@/lib/look";
 import { lookActions, useLook } from "@/lib/lookStore";
 import { useNow, useStudyStore } from "@/lib/store";
-import { CardsIcon, ChartIcon, ClipboardIcon, NotebookIcon, SettingsIcon, SproutMark, SunIcon } from "./Icons";
+import { BoneIcon, CardsIcon, ChartIcon, ClipboardIcon, NotebookIcon, SettingsIcon, SproutMark, SunIcon } from "./Icons";
 
 export const NAV = [
   { href: "/", label: "Today", icon: SunIcon, key: "page:today" },
@@ -16,7 +16,10 @@ export const NAV = [
   { href: "/notebook", label: "Notebook", icon: NotebookIcon, key: "page:notebook" },
 ] as const;
 
-export function isActive(pathname: string, item: (typeof NAV)[number]) {
+/** Pages that don't get a phone tab (five is the most that fit); phones reach them from Settings. */
+export const MORE = [{ href: "/anatomy", label: "Anatomy", icon: BoneIcon, key: "page:anatomy" }] as const;
+
+export function isActive(pathname: string, item: (typeof NAV)[number] | (typeof MORE)[number]) {
   if (item.href === "/") return pathname === "/";
   return pathname.startsWith(item.href) || ("also" in item && item.also.some((p) => pathname.startsWith(p)));
 }
@@ -43,7 +46,7 @@ export function Sidebar() {
 
       <nav aria-label="Main" className="mt-4 flex-1 overflow-y-auto px-3 pb-4">
         <ul className="space-y-0.5">
-          {NAV.map((item) => {
+          {[...NAV, ...MORE].map((item) => {
             const Icon = item.icon;
             const emoji = icon(item.key);
             return (

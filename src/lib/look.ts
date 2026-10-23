@@ -46,7 +46,7 @@ export type PatternId = (typeof PATTERNS)[number]["id"];
 
 export type Cover = { kind: "pattern"; pattern: PatternId } | { kind: "photo"; id: string } | { kind: "none" };
 
-export const PAGE_SLOTS = ["today", "tracker", "quiz", "cards", "notebook", "settings"] as const;
+export const PAGE_SLOTS = ["today", "tracker", "quiz", "cards", "notebook", "anatomy", "settings"] as const;
 export type PageSlot = (typeof PAGE_SLOTS)[number];
 
 /**
@@ -83,6 +83,7 @@ export const DEFAULT_ICONS: Record<string, string> = {
   "page:quiz": "✏️",
   "page:cards": "🗂️",
   "page:notebook": "📓",
+  "page:anatomy": "🦴",
   "page:settings": "🎀",
   "paper:np1": "🏡",
   "paper:np2": "🍼",
@@ -98,6 +99,7 @@ export const DEFAULT_COVERS: Record<string, Cover> = {
   "page:quiz": { kind: "pattern", pattern: "stripes" },
   "page:cards": { kind: "pattern", pattern: "dots" },
   "page:notebook": { kind: "pattern", pattern: "lined" },
+  "page:anatomy": { kind: "pattern", pattern: "waves" },
   "page:settings": { kind: "pattern", pattern: "flowers" },
 };
 const DEFAULT_PAPER_COVER: Cover = { kind: "pattern", pattern: "waves" };

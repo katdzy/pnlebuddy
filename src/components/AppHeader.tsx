@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SettingsIcon, SproutMark } from "./Icons";
-import { isActive, NAV } from "./Sidebar";
+import { isActive, MORE, NAV } from "./Sidebar";
 
 /** Narrower screens (iPad portrait, phones): a slim top bar, with tabs along the bottom on phones. */
 export function AppHeader() {
@@ -15,18 +15,18 @@ export function AppHeader() {
         <div className="flex h-14 items-center justify-between gap-4 px-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2.5 rounded-md text-ink no-underline">
             <SproutMark size={26} />
-            <span className="font-display text-[1.1875rem] font-bold tracking-[-0.01em]">PNLE Buddy</span>
+            <span className="whitespace-nowrap font-display text-[1.1875rem] font-bold tracking-[-0.01em]">PNLE Buddy</span>
           </Link>
           <nav aria-label="Main" className="hidden md:block">
             <ul className="flex items-center gap-1">
-              {NAV.map((item) => {
+              {[...NAV, ...MORE].map((item) => {
                 const active = isActive(pathname, item);
                 return (
                   <li key={item.href}>
                     <Link
                       href={item.href}
                       aria-current={active ? "page" : undefined}
-                      className={`flex h-11 items-center rounded-md px-3 text-body font-bold no-underline transition-colors ${
+                      className={`flex h-11 items-center rounded-md px-2.5 text-body font-bold no-underline transition-colors ${
                         active ? "bg-accent-wash text-accent-ink" : "text-ink-soft hover:bg-sunken hover:text-ink"
                       }`}
                     >

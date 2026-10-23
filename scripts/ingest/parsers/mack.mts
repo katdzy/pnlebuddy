@@ -49,8 +49,9 @@ function decode(s: string): string {
 export function pageLines(pageXml: string, width: number, height = 1174, marks = false): string[] {
   const segs: Seg[] = [];
   for (const t of pageXml.matchAll(/<text top="(\d+)" left="(\d+)" width="(\d+)" height="\d+" font="\d+">([\s\S]*?)<\/text>/g)) {
-    // ⟦B⟧ marks a bold run (glossary terms), only when asked for.
-    const text = decode(marks ? t[4].replace(/<b>/g, "⟦B⟧").replace(/<\/b>/g, "⟦/B⟧") : t[4]);
+    // ⟦B⟧ marks a bold run (glossary terms), only when asked for. A bold run ending in two spaces is marked ⟦CUT⟧:
+    // see restoreLigatureLoss.
+    const text = decode(marks ? t[4].replace(/ {2,}<\/b>/g, "⟦CUT⟧</b>").replace(/<b>/g, "⟦B⟧").replace(/<\/b>/g, "⟦/B⟧") : t[4]);
     if (!text.trim() || FOOTER.test(text)) continue;
     segs.push({ top: Number(t[1]), left: Number(t[2]), width: Number(t[3]), text });
   }
@@ -173,6 +174,8 @@ export interface GlossaryTerm {
   pages: number[];
   chapter?: number;
   topicId?: string;
+  /** The term as the PDF's text layer has it, when restoreLigatureLoss put back its last letters. */
+  textLayer?: string;
 }
 
 export interface MackBook {
@@ -247,12 +250,45 @@ function parseIndex(lines: string[]): Map<string, number[]> {
   return index;
 }
 
+/**
+ * In part of the glossary the PDF's text layer drops one letter per "fi"/"fl"/"ff" ligature from the end of a bold
+ * term ("flexor hallucis longu", "flexor digitorum superficial" for "…superficialis"); those runs end in two spaces.
+ * Put the letters back from the book itself: the completion of that length that its chapters use most, for the whole
+ * term or else for its last word. Returns null when the book never uses one, so the term is left as printed.
+ */
+export function restoreLigatureLoss(term: string, bookText: string): string | null {
+  const missing = (term.match(/ff[il]?|f[il]/g) ?? []).length;
+  if (missing === 0) return null;
+  if ((term.match(/\(/g) ?? []).length > (term.match(/\)/g) ?? []).length) {
+    return missing === 1 ? `${term})` : null;
+  }
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const best = (re: RegExp, prefix: string) => {
+    const counts = new Map<string, number>();
+    for (const m of bookText.matchAll(re)) counts.set(m[1], (counts.get(m[1]) ?? 0) + 1);
+    const top = [...counts].sort((a, b) => b[1] - a[1])[0];
+    return top ? prefix + top[0] : null;
+  };
+  const lower = term.toLowerCase();
+  const tail = `([a-z]{${missing}})(?![a-z])`;
+  const whole = best(new RegExp(`(?<![a-z])${esc(lower)}${tail}`, "g"), term);
+  if (whole) return whole;
+  const last = /([a-z]+)$/.exec(lower)?.[1];
+  return last ? best(new RegExp(`(?<![a-z])${esc(last)}${tail}`, "g"), term) : null;
+}
+
 function parseGlossary(xml: string, plain: { pdfPage: number; lines: string[] }[], chapters: { chapter: number; from: number; to: number }[]): GlossaryTerm[] {
   const gStart = plain.findIndex((p) => p.lines[0] === "Glossary" || /^G-\d+ Glossary$|^Glossary G-\d+$/.test(p.lines[0] ?? ""));
   const iStart = plain.findIndex((p, i) => i > gStart && /^I-\d+ Index$|^Index I-\d+$|^Index$/.test(p.lines[0] ?? ""));
   if (gStart < 0 || iStart < 0) return [];
   const index = parseIndex(plain.slice(iStart).flatMap((p) => p.lines));
   const marked = bookPages(xml, true).slice(gStart, iStart).flatMap((p) => p.lines);
+  const bookText = plain
+    .slice(0, gStart)
+    .flatMap((p) => p.lines)
+    .join(" ")
+    .toLowerCase()
+    .replace(/(\w)- (\w)/g, "$1$2");
 
   // An entry starts with a bold term; a term can wrap onto the next line (still bold).
   const raw: { term: string; body: string }[] = [];
@@ -271,8 +307,10 @@ function parseGlossary(xml: string, plain: { pdfPage: number; lines: string[] }[
   const chapterOf = (pdfPage: number) => chapters.find((c) => pdfPage >= c.from && pdfPage <= c.to)?.chapter;
   const byTerm = new Map<string, GlossaryTerm>();
   for (const entry of raw) {
-    const tidy = (x: string) => x.replace(/⟦\/?B⟧/g, "").replace(/(\w)- (\w)/g, "$1$2").replace(/\s+/g, " ").trim();
-    const term = tidy(entry.term).replace(/[,;:]$/, "");
+    const tidy = (x: string) => x.replace(/⟦\/?B⟧|⟦CUT⟧/g, "").replace(/(\w)- (\w)/g, "$1$2").replace(/\s+/g, " ").trim();
+    const printed = tidy(entry.term).replace(/[,;:]$/, "");
+    const restored = entry.term.includes("⟦CUT⟧") ? restoreLigatureLoss(printed, bookText) : null;
+    const term = restored ?? printed;
     let rest = tidy(entry.body);
     // Leading (aka …) / (pl: …) / (sing: …) / (Latin: …; Greek: …) groups, then the definition.
     const groups: string[] = [];
@@ -302,7 +340,16 @@ function parseGlossary(xml: string, plain: { pdfPage: number; lines: string[] }[
       if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
     }
     const chapter = [...counts].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0];
-    byTerm.set(key, { term, aka, ...(origin ? { origin } : {}), definition, pages, chapter, topicId: chapter ? anaphyTopicForChapter(chapter) : undefined });
+    byTerm.set(key, {
+      term,
+      aka,
+      ...(origin ? { origin } : {}),
+      definition,
+      pages,
+      chapter,
+      topicId: chapter ? anaphyTopicForChapter(chapter) : undefined,
+      ...(restored ? { textLayer: printed } : {}),
+    });
   }
   return [...byTerm.values()];
 }

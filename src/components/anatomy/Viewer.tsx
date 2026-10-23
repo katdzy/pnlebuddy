@@ -7,7 +7,8 @@ import { type Group, Mesh, MeshStandardMaterial } from "three";
 import type { Picked } from "./types";
 
 export interface ViewerProps {
-  systems: { id: string; label: string; url: string }[];
+  /** `color` and `veinColor` are CSS variable names, read from the current theme. */
+  systems: { id: string; label: string; url: string; color: string; veinColor?: string }[];
   visible: string[];
   picked: Picked | null;
   onPick: (p: Picked | null) => void;
@@ -20,7 +21,7 @@ export interface ViewerProps {
 const TAP_SLOP = 8;
 
 export default function Viewer({ systems, visible, picked, onPick, showFps, children }: ViewerProps) {
-  const colors = useThemeColors();
+  const colors = useThemeColors(["--color-accent", ...systems.flatMap((s) => [s.color, s.veinColor ?? s.color])]);
   const reduced = useReducedMotion();
   const [fitKey, setFitKey] = useState(0);
   const down = useRef({ x: 0, y: 0 });
@@ -49,8 +50,9 @@ export default function Viewer({ systems, visible, picked, onPick, showFps, chil
                 <System
                   id={s.id}
                   url={s.url}
-                  color={s.id === "heart" ? colors.heart : colors.bone}
-                  accent={colors.accent}
+                  color={colors[s.color]}
+                  veinColor={colors[s.veinColor ?? s.color]}
+                  accent={colors["--color-accent"]}
                   picked={picked}
                   onPick={onPick}
                 />
@@ -100,6 +102,7 @@ function System({
   id,
   url,
   color,
+  veinColor,
   accent,
   picked,
   onPick,
@@ -107,6 +110,7 @@ function System({
   id: string;
   url: string;
   color: string;
+  veinColor: string;
   accent: string;
   picked: Picked | null;
   onPick: (p: Picked | null) => void;
@@ -116,11 +120,12 @@ function System({
   const api = useBounds();
   const root = useRef<Group>(null);
 
-  // Each structure gets its own material so it can be highlighted or faded on its own.
-  // Once loaded, frame the body again so the new system is in view.
+  // Each structure gets its own material so it can be highlighted or faded on its own, and smooth normals (the
+  // files leave them out). Once loaded, frame the body again so the new system is in view.
   useEffect(() => {
     root.current?.traverse((o) => {
       if (o instanceof Mesh && o.userData.own !== true) {
+        if (!o.geometry.getAttribute("normal")) o.geometry.computeVertexNormals();
         o.material = new MeshStandardMaterial({ roughness: 0.75, metalness: 0 });
         o.userData.own = true;
       }
@@ -134,7 +139,7 @@ function System({
       const mat = o.material as MeshStandardMaterial;
       const isPicked = picked?.fma === o.userData.fma;
       const faded = picked !== null && !isPicked;
-      mat.color.set(color);
+      mat.color.set(o.userData.vein ? veinColor : color);
       mat.emissive.set(isPicked ? accent : "#000000");
       mat.emissiveIntensity = isPicked ? 0.55 : 0;
       if (mat.transparent !== faded) mat.needsUpdate = true;
@@ -143,7 +148,7 @@ function System({
       mat.depthWrite = !faded;
     });
     invalidate();
-  }, [scene, picked, color, accent, invalidate]);
+  }, [scene, picked, color, veinColor, accent, invalidate]);
 
   return (
     <primitive
@@ -175,20 +180,23 @@ function FpsMeter({ out }: { out: RefObject<HTMLSpanElement | null> }) {
   return null;
 }
 
-/** The scene's colours come from the theme tokens, and follow a theme change. */
-function useThemeColors() {
-  const read = () => {
-    const css = getComputedStyle(document.documentElement);
-    const v = (name: string) => css.getPropertyValue(name).trim();
-    return { bone: v("--color-bone"), heart: v("--tag-red-solid"), accent: v("--color-accent") };
-  };
-  const [colors, setColors] = useState(read);
+/** The scene's colours come from the theme tokens (CSS variable names → values), and follow a theme change. */
+function useThemeColors(names: string[]): Record<string, string> {
+  const key = [...new Set(names)].join(",");
+  const [colors, setColors] = useState(() => readTokens(key));
   useEffect(() => {
-    const obs = new MutationObserver(() => setColors(read()));
+    const update = () => setColors(readTokens(key));
+    update();
+    const obs = new MutationObserver(update);
     obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
     return () => obs.disconnect();
-  }, []);
+  }, [key]);
   return colors;
+}
+
+function readTokens(key: string): Record<string, string> {
+  const css = getComputedStyle(document.documentElement);
+  return Object.fromEntries(key.split(",").map((n) => [n, css.getPropertyValue(n).trim()]));
 }
 
 function useReducedMotion() {

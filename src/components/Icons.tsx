@@ -108,6 +108,13 @@ export const NotebookIcon = (p: IconProps) => (
   </Icon>
 );
 
+/** A bone, for the 3D anatomy page. */
+export const BoneIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M8.5 15.5l7-7M6.2 13.4a2.4 2.4 0 1 0-1.8 4.2 2.4 2.4 0 1 0 4.2 1.8l7-7a2.4 2.4 0 1 0 1.8-4.2 2.4 2.4 0 1 0-4.2-1.8z" />
+  </Icon>
+);
+
 export const BookIcon = (p: IconProps) => (
   <Icon {...p}>
     <path d="M12 6.5C10 5 7.5 4.5 4 4.5v14c3.5 0 6 .5 8 2 2-1.5 4.5-2 8-2v-14c-3.5 0-6 .5-8 2zM12 6.5v14" />
