@@ -110,6 +110,7 @@ export const AREAS: Area[] = [
   { id: "int-fundamentals", paperId: "int", name: "Fundamentals of nursing" },
   { id: "int-pharma", paperId: "int", name: "Pharmacology" },
   { id: "int-palmr", paperId: "int", name: "Professional practice (PALMR)" },
+  { id: "int-anaphy", paperId: "int", name: "Anatomy & physiology" },
 ];
 
 export const TOPICS: Topic[] = [
@@ -1110,6 +1111,35 @@ export const TOPICS: Topic[] = [
     ],
   },
 ];
+
+/*
+ * Anatomy & physiology, one topic per body system, following the chapters of
+ * Mack Co, Anatomy & Physiology (1st ed., Cengage 2023) and her ANAPHY lecture
+ * notes. These have no keywords on purpose: their content is assigned by book
+ * chapter, so they never pull clinical questions away from the NP topics.
+ * Keep them at the END of TOPICS: flashcard progress stores topics by index.
+ */
+export const ANAPHY_TOPICS: (Topic & { bookChapters: number[]; lectureChapters: number[] })[] = [
+  { id: "int-ap-foundations", name: "Body organization, chemistry, cells & tissues", bookChapters: [1, 2, 3, 4, 5], lectureChapters: [1, 2, 3, 4] },
+  { id: "int-ap-integumentary", name: "Integumentary system", bookChapters: [6], lectureChapters: [5] },
+  { id: "int-ap-skeletal", name: "Bones, skeleton & joints", bookChapters: [7, 8, 9, 10], lectureChapters: [6] },
+  { id: "int-ap-muscular", name: "Muscle tissue & the muscular system", bookChapters: [11, 12], lectureChapters: [7] },
+  { id: "int-ap-nervous", name: "Nervous system & senses", bookChapters: [13, 14, 15, 16], lectureChapters: [8, 9] },
+  { id: "int-ap-endocrine", name: "Endocrine system", bookChapters: [17], lectureChapters: [10] },
+  { id: "int-ap-cardiovascular", name: "Blood, heart & blood vessels", bookChapters: [18, 19, 20], lectureChapters: [11, 12, 13] },
+  { id: "int-ap-lymphatic", name: "Lymphatic & immune system", bookChapters: [21], lectureChapters: [14] },
+  { id: "int-ap-respiratory", name: "Respiratory system", bookChapters: [22], lectureChapters: [15] },
+  { id: "int-ap-digestive", name: "Digestive system, metabolism & nutrition", bookChapters: [23, 24], lectureChapters: [16, 17] },
+  { id: "int-ap-urinary", name: "Urinary system, fluids & acid-base", bookChapters: [25, 26], lectureChapters: [18] },
+  { id: "int-ap-reproductive", name: "Reproductive systems", bookChapters: [27], lectureChapters: [19] },
+].map((t) => ({ ...t, paperId: "int" as const, areaId: "int-anaphy", keywords: [] }));
+
+TOPICS.push(...ANAPHY_TOPICS.map((t): Topic => ({ id: t.id, paperId: t.paperId, areaId: t.areaId, name: t.name, keywords: t.keywords })));
+
+/** Book chapter → A&P topic id. Chapter 28 (response to disease) spans systems, so it has none. */
+export function anaphyTopicForChapter(chapter: number): string | undefined {
+  return ANAPHY_TOPICS.find((t) => t.bookChapters.includes(chapter))?.id;
+}
 
 /* ── Lookups ─────────────────────────────────────────────────────────── */
 

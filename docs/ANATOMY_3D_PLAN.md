@@ -1,0 +1,180 @@
+# 3D anatomy: plan for Claude Code
+
+An in-app 3D body she can turn, peel and tap, tied to her own A&P book, her lecture notes and the question bank.
+Read `PRODUCT.md` and `DESIGN.md` first: the same principles apply here (calm, one thing at a time, iPad-first,
+honest), and every colour comes from the theme tokens so all six themes keep working.
+
+Status: **planned, not started.** The book content it builds on is already in the app (see "What already exists").
+
+---
+
+## 1. What she gets
+
+- **Body view** at `/anatomy`: one body, system chips along the top (Skeletal, Muscular, Nervous, Cardiovascular,
+  Respiratory, Digestive, Urinary, Reproductive, Endocrine, Lymphatic). Turn with one finger, pinch to zoom, two
+  fingers to pan, a "reset view" button.
+- **Tap a structure** → it highlights, everything else fades, and a card shows:
+  - the name, its "aka" names, and the word origin (Latin/Greek), from her book's glossary;
+  - the book's definition, word for word, with the book pages to read (printed page numbers);
+  - which of her ANAPHY lecture files covers it;
+  - "Practice": book questions and board questions that mention it, and its flashcard if there is one.
+- **Peel / x-ray**: per system, show, fade (x-ray) or hide. "Isolate" shows only the tapped structure.
+- **Search**: type "femur", "SA node", "loop of Henle" and jump to it. If the structure isn't in the 3D model
+  (microscopic things like the nephron or the alveolus), show its book definition and pages instead of failing.
+- **Identify quiz** (phase 3): a structure lights up and she picks its name from four, distractors from the same
+  system. Missed ones go to the notebook like any other mistake.
+- **Nursing overlays** (phase 4): IM injection sites (deltoid, vastus lateralis, ventrogluteal, and dorsogluteal
+  with the sciatic nerve showing why it's avoided), heart auscultation points, abdominal quadrants and McBurney's
+  point, lumbar puncture level. These are hand-placed and must be checked by her before they ship.
+
+Out of scope: microscopic anatomy (cells, nephron, sarcomere), physiology animations, and skin layers (BodyParts3D
+has no detailed integument). For those, the card points to the book figure pages.
+
+---
+
+## 2. What already exists (built from her book)
+
+Her book is **Mack Co, *Anatomy & Physiology*, 1st ed., Cengage 2023**, in
+`RN2027/NURSING 1/ANATOMY AND PHYSIOLOGY/`. `scripts/ingest/parsers/mack.mts` reads its layout XML column by column
+and produces:
+
+| Output | What | Used by |
+|---|---|---|
+| `public/content/questions-int.json` | 649 Learning Check + chapter Review questions, keyed from the book's own answer appendix | quizzes, topic drills |
+| `public/content/cards-int.json` | 2,053 glossary flashcards (term → book definition, origin, pages) | flashcards |
+| `public/content/anatomy-terms.json` (git-ignored: book text) | all 2,511 glossary terms: `{term, aka[], origin?, definition, pages[] (PDF), chapter?, topicId?}` | **the 3D info card** |
+| `src/content/generated/reading.json` | each A&P topic → book chapters (PDF pages) + her ANAPHY_LEC lecture files | topic pages |
+
+The A&P topics are the 12 `int-ap-*` topics in `src/content/taxonomy.ts` (`ANAPHY_TOPICS`, area `int-anaphy`), each
+with `bookChapters` and `lectureChapters`. PDF page = printed page + 22 (`MACK_PAGE_OFFSET`).
+
+Keys are taken exactly as the book prints them. A few look debatable (e.g. §10.3b Learning Check q2 says symphysis
+joints are more prevalent during development). Don't "fix" keys in code; if she disagrees, she notes it in the
+notebook.
+
+---
+
+## 3. The 3D model
+
+**Use BodyParts3D 4.0** (Database Center for Life Science, Japan).
+
+- License: **CC BY 4.0** (changed from CC BY-SA 2.1 JP in Feb 2025). Required credit, verbatim:
+  "BodyParts3D, © The Database Center for Life Science licensed under CC Attribution 4.0 International".
+- Download from https://dbarchive.biosciencedbc.jp/en/bodyparts3d/download.html :
+  - `partof_BP3D_4.0_obj_99.zip` (62 MB, OBJ meshes at 99% reduction, PART-OF tree). Start here.
+  - `partof_parts_list_e.txt`, `partof_inclusion_relation_list.txt`, `partof_element_parts.txt` (tab-separated:
+    FMA concept id, English name, element file ids).
+  - Only ELEMENT parts have meshes; a COMPOUND part ("heart", "skeletal system") is the sum of its elements.
+- Keep the downloads **outside the repo**: `~/Fel Reviewers/anatomy-src/`. The converted GLBs go in
+  `public/anatomy/`. The model license allows them in the public repo, but they're tens of MB, so git-ignore
+  `/public/anatomy/*.glb` and build them on the Mac like `public/content/` (deploys run from there).
+
+Later, optionally: **Z-Anatomy** (CC BY-SA 4.0, a Blender atlas built on BodyParts3D with better muscles and labels).
+Two of its reference models are non-commercial (kidney: CC BY-NC 4.0; inner ear: CC BY-NC-SA 4.0). Fine for her
+private use, but list them on the credits page and don't use them if the app ever goes public.
+
+---
+
+## 4. Build pipeline (`scripts/anatomy/`)
+
+Node 22 `.mts` scripts, same style as `scripts/ingest/`. Add `npm run anatomy`.
+
+1. **`systems.mts`: choose what goes in each system file.** For each system, find its root concept *by English name*
+   in `partof_parts_list_e.txt` (e.g. "skeletal system", "heart", "lung", "brain"), walk
+   `partof_inclusion_relation_list.txt` down to ELEMENT parts, and map those to OBJ files with
+   `partof_element_parts.txt`. **Look up the FMA ids from the files; don't hard-code ids from memory.** Write the
+   resolved roots into `src/content/anatomy/systems.ts`:
+
+   | System | Roots to look for (verify names in the parts list) | Topic |
+   |---|---|---|
+   | Skeletal | skeletal system / bones, joints, cartilage | `int-ap-skeletal` |
+   | Muscular | skeletal muscles | `int-ap-muscular` |
+   | Nervous | brain, spinal cord, cranial nerves, spinal nerves, eye, ear | `int-ap-nervous` |
+   | Cardiovascular | heart, arteries, veins | `int-ap-cardiovascular` |
+   | Respiratory | nasal cavity, larynx, trachea, bronchi, lungs, diaphragm | `int-ap-respiratory` |
+   | Digestive | oral cavity → anus, liver, gallbladder, pancreas | `int-ap-digestive` |
+   | Urinary | kidneys, ureters, bladder, urethra | `int-ap-urinary` |
+   | Reproductive | male and female genital organs (two files; she picks) | `int-ap-reproductive` |
+   | Endocrine | thyroid, parathyroid, adrenal, pituitary, pancreas (shared with digestive) | `int-ap-endocrine` |
+   | Lymphatic | spleen, thymus, tonsils, lymph nodes and vessels if present | `int-ap-lymphatic` |
+
+   Left/right pairs stay separate meshes (she needs "left ventricle" vs "right").
+
+2. **`convert.mts`: OBJ → one GLB per system.** Use `obj2gltf` per element, then `@gltf-transform/core` +
+   `@gltf-transform/functions` to merge into one scene per system: `weld`, `simplify` (meshoptimizer, target about
+   50% on muscles and vessels), `quantize`, `meshopt` compression. **Each element stays its own mesh, named by its
+   FMA id**, so tapping can find it. Budget: ≤ 4 MB per system file, ≤ 30 MB total. Output
+   `public/anatomy/<system>.glb`, plus a content hash in the file name so it can be cached forever.
+
+3. **`structures.mts`: the structure catalogue** → `public/anatomy/structures.json`:
+   `{ fmaId, name, system, side?, center: [x,y,z], radius, termKey? }`.
+   `termKey` links to `anatomy-terms.json`: normalise the FMA name (drop "left/right", "of", plural forms) and match
+   the glossary `term` or `aka`; record unmatched names in `public/anatomy/report.md`. Never write a definition by
+   hand here: an unmatched structure shows its name and the book chapter only.
+
+4. **Credits**: write the attribution into `public/anatomy/CREDITS.md`, and show it on a `/anatomy/credits` page
+   (linked from the viewer's ⓘ button and from Settings).
+
+Package versions (current and React 19.3 compatible as of Oct 2026; re-check before installing):
+`three@0.186.1`, `@react-three/fiber@9.8.1` (peer: react ≥19 <19.4), `@react-three/drei@10.7.9`;
+dev: `@gltf-transform/core`, `@gltf-transform/functions`, `@gltf-transform/extensions` (4.5.x), `meshoptimizer@1.3.0`,
+`obj2gltf@3.2.0`.
+
+---
+
+## 5. Viewer (app code)
+
+- **Route** `src/app/(main)/anatomy/page.tsx` (server: title and metadata only) → `src/components/anatomy/AnatomyScreen.tsx`
+  (`"use client"`) → `Viewer` loaded with `next/dynamic(..., { ssr: false })`. In this Next.js, `ssr: false` is only
+  allowed inside a client component (see `node_modules/next/dist/docs/01-app/02-guides/lazy-loading.md`). three.js
+  must never load on other pages.
+- **Rendering** (react-three-fiber + drei): `<Canvas frameloop="demand" dpr={[1, 2]}>`, `OrbitControls` (damped,
+  limits so she can't get lost inside the body), `useGLTF` with the meshopt decoder, one `<Suspense>` per system so
+  each loads only when its chip is turned on (start with Skeletal). Soft studio light; no shadows.
+- **Picking**: raycast on tap (not hover; this is a touch app). Highlight = emissive tint from the app's accent
+  token; others go to 15% opacity. Label only the selected structure (drei `Html`), never a cloud of labels.
+- **Layout**: iPad landscape: canvas on the left, info card on the right (360 px). Portrait and phone: canvas full
+  width, card as a bottom sheet. Use existing tokens and components (`Bits.tsx`, `.chip`, `.btn`). The canvas
+  background and highlight colour read the current theme's CSS variables, so Night shift gets a dark scene.
+- **State**: selected structure and visible systems live in the URL (`?s=heart&f=<fmaId>`), so a topic page or a
+  question can deep-link to "show me this".
+- **Info card** reads `anatomy-terms.json` (lazy, about 650 KB), `reading.json` and the question bank already in
+  memory. "Practice this" = `int-ap-*` questions whose stem or choices mention the term or an aka, then board questions
+  that do; start with `actions.startList(...)`.
+- **Accessibility**: a "List" toggle shows the same structures as a searchable list per system (the 3D canvas is not
+  usable with a screen reader). Respect `prefers-reduced-motion` (no auto-rotate, no fly-to animation). 44 px tap
+  targets on all controls.
+- **Links in**: A&P topic pages (`/topics/int-ap-*`) get "Open in 3D" for their system; the tracker's A&P area too.
+  Add "Anatomy" to the sidebar's page list in `src/components/Sidebar.tsx` (with a page icon key in `look.ts`), and on
+  phones to the More/settings route rather than a sixth bottom tab.
+- **Offline**: `public/sw.js` is network-first. Add cache-first for `/anatomy/*.glb` (hashed, immutable) so a system
+  she has opened once works offline. Bump `CACHE`.
+
+---
+
+## 6. Progress (phase 3, identify quiz)
+
+Identify results need their own spaced-repetition state. Add `anatomy: Record<fmaId, CardState>` to `StudyData` as
+**v4 (v3 is her topic checklist) with a migration and a test in `storage.ts`** (CLAUDE.md rule 4). Reuse `rateCard` from `cards.ts`. Misses go to the
+notebook as `kind: "card"` mistakes with a snapshot (name, system, book definition) so the notebook still works if
+the model changes.
+
+---
+
+## 7. Phases
+
+| Phase | Work | Done when |
+|---|---|---|
+| 0. Spike | Convert Skeletal + heart only; bare `/anatomy` page | Runs at ≥ 45 fps on her iPad, tap selects the right bone, page weight < 8 MB. If not, drop to fewer muscles/vessels or try three's `BatchedMesh` before going further. |
+| 1. Pipeline | `npm run anatomy` builds all systems, `structures.json`, report, credits | ≥ 80% of structures matched to a glossary term; report lists the rest |
+| 2. Viewer | systems, peel/x-ray, tap card, search, list mode, deep links, topic-page links | Typecheck, lint, tests pass; checked at iPad and phone sizes; no console errors |
+| 3. Study | "Practice this", identify quiz, v3 storage + migration test, notebook | Tests for the quiz queue and the migration |
+| 4. Nursing overlays | injection sites, auscultation points, quadrants (hand-placed pins) | She has checked every pin |
+
+---
+
+## 8. Questions for her
+
+1. Which systems first? (Suggest: cardio, respiratory, nervous: heaviest on NP3–NP5.)
+2. Are the nursing overlays (injection sites, auscultation points) worth it before the identify quiz?
+3. Filipino names or mnemonics she uses for structures, to show on the card?

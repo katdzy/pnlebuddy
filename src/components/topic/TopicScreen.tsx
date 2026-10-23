@@ -195,7 +195,7 @@ function Topic({ data, bank, content, now, topicId, reviewerHtml, reading }: Rea
           ) : (
             <ul className="mt-3 divide-y divide-line border-y border-line">
               {reading.map((r) => (
-                <li key={r.file} className="py-3">
+                <li key={`${r.file}|${r.label}`} className="py-3">
                   <p className="break-all font-semibold leading-snug">{r.label.replace(/^[^:]+:\s*/, "").replace(/_/g, " ")}</p>
                   <p className="tabular text-meta text-ink-muted">{pagesLabel(r.pages)}</p>
                   <p className="mt-0.5 break-words text-[0.75rem] text-ink-muted">RN2027/{r.file}</p>
@@ -203,7 +203,11 @@ function Topic({ data, bank, content, now, topicId, reviewerHtml, reading }: Rea
               ))}
             </ul>
           )}
-          <p className="mt-3 text-meta text-ink-muted">Found by matching this topic&apos;s key terms page by page, so treat it as a starting point.</p>
+          <p className="mt-3 text-meta text-ink-muted">
+            {topic.areaId === "int-anaphy"
+              ? "The chapters of your A&P book and the lecture notes for this body system."
+              : "Found by matching this topic\u2019s key terms page by page, so treat it as a starting point."}
+          </p>
 
           {mistakes.length > 0 && (
             <div className="mt-10">

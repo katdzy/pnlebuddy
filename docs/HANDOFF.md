@@ -62,10 +62,29 @@ Built in that session (see `CLAUDE.md` for architecture and rules):
 - Verified: typecheck, lint, 19 tests, production build, click-through at iPad and phone sizes.
 
 Known issues / next tasks:
-- Git has only the starter commit; **all of this work is uncommitted.** Commit it (repo must stay private).
-- Run `npm install` once (adds `marked`, `@types/node@22`).
 - Keyword classification misfiles a small share (e.g. a pressure-ulcer item under geriatrics). Tune keywords in
   `taxonomy.ts`, re-run `npm run ingest`, read `content-report.md`.
 - More answer keys could be recovered from student-copy sets if the review center provided keys.
 - Not yet tested on her iPad; deploy privately over HTTPS for a stable Home Screen app.
 - localStorage may fill up as flashcard states grow; IndexedDB is the next step if it does.
+
+## Added Oct 23: her A&P book, and a 3D anatomy plan
+
+- Her textbook **Mack Co, *Anatomy & Physiology*, 1st ed. (Cengage 2023)** is in
+  `RN2027/NURSING 1/ANATOMY AND PHYSIOLOGY/` with her ANAPHY_LEC lecture notes. (PDF page = printed page + 22.)
+- New area **Anatomy & physiology** (`int-anaphy`) under Integrated, with **12 topics, one per body system**, mapped
+  to book chapters and lecture chapters. Total topics: 79.
+- From the book (`scripts/ingest/parsers/mack.mts`):
+  - **649 questions** from the Learning Checks and the end-of-section Review Questions, keyed from the book's own
+    answer appendix. A question block is kept only if its numbering matches its key block exactly, so a missed
+    heading can't pair questions with the wrong answers. Keys are as printed; a few look debatable (e.g. §10.3b q2).
+    There are no rationales in the book, so the answer screen shows the section and page instead.
+  - **2,053 glossary flashcards** (term, aka, Latin/Greek origin, the book's definition, book pages). Each goes to
+    the body system whose chapters the book's index cites most; 458 terms the index doesn't list were left out.
+  - `public/content/anatomy-terms.json`: all 2,511 glossary terms with pages, for the 3D viewer's info cards.
+  - A&P topic pages list the book chapters (PDF pages) and her lecture files for that system.
+- New questions are introduced in topic order, so A&P items don't crowd into Today's practice; she reaches them from
+  the tracker, topic pages and the quiz builder.
+- Totals after ingest: **5,407 questions, 23,851 flashcards.**
+- **3D anatomy: planned, not built.** See `docs/ANATOMY_3D_PLAN.md`. Open questions for her are at the end of it.
+- I (the planning session) used the **Brunner & Suddarth 14th-edition test bank**, not her 15th-edition textbook.

@@ -1,5 +1,5 @@
 > **Draft reviewer.** Written from standard med-surg references as a sample of the format. Check every value against
-> your own notes (Brunner ch. 13, MEDSURG 1 L.1 Fluids and Electrolytes) and your review center's ranges, which can
+> your own notes (Brunner & Suddarth 14e test bank, ch. 13; MEDSURG 1 L.1 Fluids and Electrolytes) and your review center's ranges, which can
 > differ slightly.
 
 ## Normal values to know cold

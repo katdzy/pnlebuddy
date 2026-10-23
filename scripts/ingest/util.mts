@@ -60,6 +60,10 @@ export interface RawQuestion {
   /** Restrict classification to these papers, when the source is clearly labelled. */
   papers?: string[];
   page?: number;
+  /** Set when the source itself fixes the topic (e.g. a textbook chapter); skips the classifier. */
+  topicId?: string;
+  /** Where in the source, for the label (e.g. "§27.8 Questions, p. 1218"). */
+  where?: string;
 }
 
 /** Cut a rationale where the next question or situation starts bleeding in. */
@@ -69,9 +73,9 @@ export function trimRationale(r: string): string {
 }
 
 /** Shared sanity checks. Returns a reason string when the item should be dropped. */
-export function rejectReason(q: RawQuestion): string | null {
+export function rejectReason(q: RawQuestion, opts: { minChoices?: number } = {}): string | null {
   if (q.stem.length < 12) return "stem too short";
-  if (q.choices.length < 3 || q.choices.length > 6) return "unexpected number of choices";
+  if (q.choices.length < (opts.minChoices ?? 3) || q.choices.length > 6) return "unexpected number of choices";
   if (q.choices.some((c) => c.length === 0)) return "empty choice";
   if (q.answer.length === 0) return "no answer key";
   if (q.answer.some((a) => CHOICES.indexOf(a) >= q.choices.length)) return "answer outside choices";

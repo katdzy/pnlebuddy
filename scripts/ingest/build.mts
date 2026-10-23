@@ -24,12 +24,13 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { homedir } from "node:os";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PAPERS, TOPICS, getTopic, type PaperId } from "../../src/content/taxonomy.ts";
+import { ANAPHY_TOPICS, PAPERS, TOPICS, getTopic, type PaperId } from "../../src/content/taxonomy.ts";
 import type { ContentManifest, Flashcard, Question } from "../../src/lib/content-types.ts";
 import { findDecks, readApkg } from "./anki.mts";
 import { classify } from "./classify.mts";
 import { layoutToText } from "./layout.mts";
 import { parseBrunner } from "./parsers/brunner.mts";
+import { MACK_PAGE_OFFSET, readMack, type GlossaryTerm } from "./parsers/mack.mts";
 import { parseGoogleForms } from "./parsers/gforms.mts";
 import { parsePnle } from "./parsers/pnle.mts";
 import { parseSaunders } from "./parsers/saunders.mts";
@@ -55,6 +56,8 @@ function walk(dir: string, ext: string): string[] {
   }
   return out.sort();
 }
+/** Her A&P textbook (Mack Co, Cengage 2023). Parsed on its own, never by the board-file parser. */
+const MACK = /Mack Co - Anatomy & Physiology/;
 const rel = (p: string) => relative(SRC, p).replace(/^_(ocr_)?text\/(_layout\/)?/, "").replace(/\.(txt|xml)$/, ".pdf");
 
 /* ── Source labels ───────────────────────────────────────────────────── */
@@ -62,6 +65,8 @@ function labelFor(file: string): string {
   const name = basename(file).replace(/\.(txt|xml|pdf)$/, "");
   if (/Saunders Q & A/i.test(name)) return "Saunders Q&A Review for the NCLEX-RN, 9th ed.";
   if (/Brunner.*Testbank/i.test(name)) return "Brunner & Suddarth Test Bank, 14th ed.";
+  if (MACK.test(file)) return "Mack Co, Anatomy & Physiology, 1st ed.";
+  if (/ANAPHY_LEC/.test(name)) return `A&P lecture: ${name.replace(/^ANAPHY_LEC[_ ]*(CHAPTER)?\s*/i, "Ch. ").replace(/\.pdf.*$| \(\d\)$|\.$| copy$/g, "").replace(/_/g, " ").replace(/\s+/g, " ")}`;
   const folder = basename(dirname(file)).replace(/^\d+\.\s*/, "");
   if (/TOPRANK/.test(file)) return `Toprank ${folder.toLowerCase()}: ${name}`;
   return `${folder}: ${name}`;
@@ -76,7 +81,7 @@ const parsed: Parsed[] = [];
 const drops: Record<string, number> = {};
 const perSource = new Map<string, { kept: number; dropped: number }>();
 
-function add(file: string, items: RawQuestion[]) {
+function add(file: string, items: RawQuestion[], opts: { minChoices?: number } = {}) {
   const label = labelFor(file);
   const stat = perSource.get(label) ?? { kept: 0, dropped: 0 };
   for (const raw of items) {
@@ -85,7 +90,7 @@ function add(file: string, items: RawQuestion[]) {
       rationale: trimRationale(raw.rationale),
       situation: raw.situation?.replace(/^\d{1,3}\s*[-–]\s*\d{1,3}\s*/, "") || undefined,
     };
-    const r = rejectReason(q);
+    const r = rejectReason(q, opts);
     if (r) {
       drops[r] = (drops[r] ?? 0) + 1;
       stat.dropped++;
@@ -106,7 +111,20 @@ for (const f of textFiles) {
 for (const f of walk(join(SRC, "_ocr_text"), ".txt")) {
   if (/TOPRANK REVIEWERS\/RECALL\//.test(f)) add(f, parseGoogleForms(readFileSync(f, "utf8")));
 }
+const bookChapters: { chapter: number; from: number; to: number }[] = [];
+const glossary: GlossaryTerm[] = [];
+let bookFile = "";
 for (const f of walk(join(SRC, "_text", "_layout"), ".xml")) {
+  if (MACK.test(f)) {
+    // Learning Checks and chapter Review Questions, keyed from the book's answer appendix.
+    // True/False items are part of the book, so 2 choices are allowed here.
+    const book = readMack(readFileSync(f, "utf8"));
+    add(f, book.questions, { minChoices: 2 });
+    bookChapters.push(...book.chapters);
+    glossary.push(...book.glossary);
+    bookFile = rel(f);
+    continue;
+  }
   add(f, parsePnle(layoutToText(readFileSync(f, "utf8"))));
 }
 
@@ -114,10 +132,12 @@ for (const f of walk(join(SRC, "_text", "_layout"), ".xml")) {
 const merged = new Map<string, { q: Question; files: Set<string>; answers: Map<string, number> }>();
 let unclassified = 0;
 for (const p of parsed) {
-  const c = classify(
-    { hint: p.hint, strong: [p.situation, p.stem].filter(Boolean).join(" \n "), normal: p.choices.join(" \n "), weak: p.rationale },
-    { minScore: 2 },
-  );
+  const c = p.topicId
+    ? { topicId: p.topicId }
+    : classify(
+        { hint: p.hint, strong: [p.situation, p.stem].filter(Boolean).join(" \n "), normal: p.choices.join(" \n "), weak: p.rationale },
+        { minScore: 2 },
+      );
   if (!c) {
     unclassified++;
     continue;
@@ -144,7 +164,7 @@ for (const p of parsed) {
     ...(p.tip ? { tip: p.tip } : {}),
     source: {
       kind: "reference",
-      label: p.page ? `${p.label}, p. ${p.page}` : p.label,
+      label: p.where ? `${p.label}, ${p.where}` : p.page ? `${p.label}, p. ${p.page}` : p.label,
       file: p.file,
       ...(p.page ? { page: p.page } : {}),
       clinicallyReviewed: false,
@@ -240,11 +260,39 @@ for (const deck of findDecks(SRC)) {
   }
 }
 
+// The A&P book's glossary as flashcards, in the book's own words. A term goes to the body system whose
+// chapter the book's index cites most; terms the index doesn't place are left out rather than guessed.
+const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+let glossaryUnplaced = 0;
+for (const g of glossary) {
+  if (!g.topicId) {
+    glossaryUnplaced++;
+    continue;
+  }
+  const key = fingerprint(`${g.term} ${g.definition}`);
+  if (cardKeys.has(key)) continue;
+  cardKeys.add(key);
+  const printed = g.pages.map((p) => p - MACK_PAGE_OFFSET);
+  cards.push({
+    id: hashId("c", key),
+    topicId: g.topicId,
+    deck: `Mack A&P glossary › Chapter ${g.chapter}`,
+    front: `<b>${esc(g.term)}</b>${g.aka.length ? `<br><small>aka ${esc(g.aka.join(", "))}</small>` : ""}`,
+    back:
+      g.definition.split("\n\n").map((d) => `<p>${esc(d)}</p>`).join("") +
+      (g.origin ? `<p><small><i>${esc(g.origin)}</i></small></p>` : "") +
+      (printed.length ? `<p><small>Book pp. ${printed.slice(0, 4).join(", ")}${printed.length > 4 ? ", …" : ""}</small></p>` : ""),
+    source: "Mack Co A&P 1e glossary",
+  });
+  cardSources.set("Mack Co A&P 1e glossary", (cardSources.get("Mack Co A&P 1e glossary") ?? 0) + 1);
+}
+
 /* ── Reading index: where each topic shows up in her notes ────────────── */
 const NOTE_FILE = /NURSING 1\/|ROYAL PENTAGON|EPIKUS|CARL BALITA|TRA COMPLETE HANDOUT|INTENSIVE|REFRESHER|WORKBOOK|PALMR\/(SIMPLIFIED NOTES|LAWS|PALMER Notes|palm)|DOH Health Programs|IMCI Handbook|PHARMACOLOGY \/NOTES|CRAM SHEETS\/NP\d|Udan/i;
 const reading: Record<string, { file: string; label: string; pages: number[] }[]> = {};
 const noteFiles = [...walk(join(SRC, "_text"), ".txt"), ...walk(join(SRC, "_ocr_text"), ".txt")].filter(
-  (f) => NOTE_FILE.test(f) && !/_layout/.test(f),
+  // The A&P textbook and lectures are indexed by chapter below; keyword-matching 1,300 textbook pages would bury her notes.
+  (f) => NOTE_FILE.test(f) && !/_layout/.test(f) && !MACK.test(f) && !/ANAPHY_LEC/.test(f),
 );
 for (const f of noteFiles) {
   const text = readFileSync(f, "utf8");
@@ -261,6 +309,26 @@ for (const f of noteFiles) {
   }
 }
 for (const list of Object.values(reading)) list.sort((a, b) => b.pages.length - a.pages.length).splice(8);
+
+// A&P topics: the textbook chapters and her lecture notes that cover each body system.
+const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const lectures = [...walk(join(SRC, "_text"), ".txt"), ...walk(join(SRC, "_ocr_text"), ".txt")]
+  .filter((f) => /ANAPHY_LEC/.test(f))
+  .map((f) => {
+    const n = /CHAPTER[ _]*(\d{1,2})|ANAPHY_LEC (\d{1,2})_/i.exec(basename(f));
+    return { f, chapter: n ? Number(n[1] ?? n[2]) : 0 };
+  });
+for (const t of ANAPHY_TOPICS) {
+  const refs: { file: string; label: string; pages: number[] }[] = [];
+  for (const ch of bookChapters.filter((c) => t.bookChapters.includes(c.chapter)))
+    refs.push({ file: bookFile, label: `Mack Co A&P 1e, ch. ${ch.chapter}`, pages: range(ch.from, ch.to) });
+  for (const { f } of lectures.filter((l) => t.lectureChapters.includes(l.chapter))) {
+    const text = readFileSync(f, "utf8");
+    const n = text.includes("===== page ") ? text.split(/\n===== page \d+ =====\n/).length - 1 : text.split("\f").filter((p) => p.trim()).length;
+    refs.push({ file: rel(f), label: labelFor(f), pages: range(1, Math.max(1, n)) });
+  }
+  if (refs.length) reading[t.id] = refs;
+}
 
 /* ── Write ───────────────────────────────────────────────────────────── */
 const manifest: ContentManifest = {
@@ -286,7 +354,7 @@ for (const paper of PAPERS) {
 }
 const qBySource = new Map<string, number>();
 for (const q of questions) {
-  const l = q.source.label.replace(/, p\. \d+$/, "");
+  const l = q.source.label.replace(/, (§.*|p\. \d+)$/, "");
   const group = /^Toprank recall/.test(l) ? "Toprank recall sets" : l;
   qBySource.set(group, (qBySource.get(group) ?? 0) + 1);
 }
@@ -295,6 +363,8 @@ manifest.sources = [
   ...[...cardSources].map(([label, n]) => ({ label, questions: 0, cards: n })),
 ].sort((a, b) => b.questions + b.cards - (a.questions + a.cards));
 writeFileSync(join(OUT, "manifest.json"), JSON.stringify(manifest, null, 1));
+// For the 3D anatomy viewer: what the book says about each structure, and where (PDF pages).
+writeFileSync(join(OUT, "anatomy-terms.json"), JSON.stringify(glossary));
 mkdirSync(GEN, { recursive: true });
 writeFileSync(join(GEN, "reading.json"), JSON.stringify(reading, null, 1));
 
@@ -307,6 +377,7 @@ const lines = [
   `- Questions kept: **${questions.length}** (parsed ${parsed.length}; ${unclassified} couldn't be matched to a topic; ${conflicts} dropped because sources disagree on the answer)`,
   `- Flashcards kept: **${cards.length}** (${cardsDropped} couldn't be matched to a topic; duplicates merged)`,
   `- Questions found in 2+ sources: ${questions.filter((q) => (q.seenIn ?? 1) > 1).length}`,
+  `- A&P book: ${parsed.filter((p) => MACK.test(p.file)).length} Learning Check / Review questions, ${glossary.length} glossary terms (${glossaryUnplaced} not in the index, so not made into cards)`,
   ``,
   `## By paper`,
   ``,

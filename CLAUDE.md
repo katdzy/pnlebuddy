@@ -22,11 +22,14 @@ Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DI
 ## How it's built
 
 - **Structure** `src/content/taxonomy.ts`: NP1–NP5 per the Enhanced TOS (BON Res. 10 s. 2025), plus an
-  "Integrated" group (fundamentals, pharmacology, PALMR) that the board tests inside every paper. Papers → areas →
-  67 specific topics. Each topic has keywords the importer uses to sort content. This is the one place to change the
-  structure.
+  "Integrated" group (fundamentals, pharmacology, PALMR, anatomy & physiology) that the board tests inside every paper.
+  Papers → 25 areas → 79 topics: 67 keyword topics the importer sorts content into, plus 12 A&P topics
+  (`ANAPHY_TOPICS`, one per body system) that are filled by book chapter, not keywords, and must stay at the end of
+  `TOPICS` (flashcard progress stores the topic index). This is the one place to change the structure.
 - **Content** is generated, not hand-written: `scripts/ingest/` parses her PDFs (Saunders Q&A, Brunner test bank,
-  Toprank Google-Forms recalls, PH board files whose keys are bold or green) and Anki decks, classifies each item into a
+  Toprank Google-Forms recalls, PH board files whose keys are bold or green), her A&P textbook (Mack Co 1e:
+  `parsers/mack.mts` reads its columns, Learning Check / Review questions keyed from its answer appendix, and its
+  glossary as flashcards) and Anki decks, classifies each item into a
   topic, merges duplicates (`seenIn` = how many of her files contain it), and drops anything without a readable answer
   key. Read `content-report.md` after every ingest.
 - **Loading** `src/lib/content.ts`: questions for all papers load at start; flashcards load per paper on demand.
@@ -59,6 +62,8 @@ Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DI
 
 ## Good next tasks
 
+- **3D anatomy viewer**: planned in `docs/ANATOMY_3D_PLAN.md` (BodyParts3D 4.0, react-three-fiber, info cards from
+  her book's glossary in `public/content/anatomy-terms.json`). Start with phase 0 and check it on her iPad.
 - Write reviewers for the topics she finds hardest (ask which), from the pages listed on each topic page.
 - Improve topic sorting where `content-report.md` looks off (adjust keywords in `taxonomy.ts`, re-run ingest).
 - Parse more answer keys: many Final Coaching "student copy" files have none; ask her if the review center gave keys.

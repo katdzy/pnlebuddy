@@ -65,9 +65,7 @@ export function AnswerReview({
         ))}
         <p className="mt-3 text-body leading-relaxed">
           {question.rationale || (
-            <span className="text-ink-soft">
-              The source didn&apos;t include a rationale for this one. It&apos;s worth a quick look in your notes.
-            </span>
+            <span className="text-ink-soft">{noRationale(question.source.label)}</span>
           )}
         </p>
       </div>
@@ -114,4 +112,11 @@ export function AnswerReview({
       </p>
     </section>
   );
+}
+
+/** Book questions point to their section; others to her notes. */
+function noRationale(label: string): string {
+  const book = /§(\d+\.\d+[a-z]?)[^,]*, p\. (\d+)$/.exec(label);
+  if (book) return `The book gives no rationale for its Learning Checks and Review Questions. Section ${book[1]} (p. ${book[2]}) explains it.`;
+  return "The source didn\u2019t include a rationale for this one. It\u2019s worth a quick look in your notes.";
 }
