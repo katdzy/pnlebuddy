@@ -1,0 +1,6 @@
+# Deployed from this Mac (her review content isn't in git):
+#   netlify deploy --build --prod
+# The site stays locked until SITE_PASSWORD is set in Netlify's environment.
+[build]
+  command = "npm run build"
+  publish = ".next"
