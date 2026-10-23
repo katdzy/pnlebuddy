@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Her review materials (paid content). Never commit: this repo is public.
+# Regenerate locally with `npm run ingest`; deploy from this machine.
+/public/content/
+/src/content/generated/
+/content-report.md
+
+# netlify
+.netlify

@@ -1,26 +1,1065 @@
 @import "tailwindcss";
 
+/*
+ * PNLE Buddy: her study workspace.
+ *
+ * The page grammar comes from the Notion trackers reviewees build for
+ * themselves: a cover banner, a page icon, a big title, callouts, colour-coded
+ * tags and database rows with checkboxes. Everything colour lives in tokens so
+ * she can switch the whole workspace between themes (data-theme on <html>) and
+ * give every paper its own tag colour (data-tone on any element).
+ *
+ * "miss" is the soft "not quite" state, never a warning or an overdue count.
+ * Each theme keeps it well away from its accent so a missed answer never
+ * reads as the brand colour.
+ */
+@theme {
+  /* Rosewater is the default theme; the others override these below. */
+  --color-paper: #faf5f3;
+  --color-surface: #fffcfb;
+  --color-sunken: #f3e9e6;
+  --color-line: #eaddd8;
+  --color-line-strong: #d3bfb9;
+
+  --color-ink: #3a2433;
+  --color-ink-soft: #5c4655;
+  --color-ink-muted: #735d6b;
+
+  --color-accent: #b86f88;
+  --color-accent-deep: #9c4f6b;
+  --color-accent-ink: #7a3753;
+  --color-accent-wash: #f6e5eb;
+  --color-accent-line: #ddb3c2;
+
+  --color-miss: #985427;
+  --color-miss-wash: #f8eade;
+  --color-miss-line: #e0bb9c;
+
+  --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-bricolage), var(--font-sans);
+
+  /* Type scale (~1.2 ratio), rem-based so iOS text size settings still apply. */
+  --text-meta: 0.875rem;
+  --text-meta--line-height: 1.4;
+  --text-small: 0.9375rem;
+  --text-small--line-height: 1.5;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.6;
+  --text-lead: 1.25rem;
+  --text-lead--line-height: 1.5;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.3;
+  --text-headline: 1.875rem;
+  --text-headline--line-height: 1.2;
+  --text-display: 2.75rem;
+  --text-display--line-height: 1.08;
+
+  --radius-control: 8px;
+  --radius-panel: 12px;
+
+  --shadow-raised: 0 1px 2px rgb(30 20 30 / 0.05), 0 6px 20px -8px rgb(30 20 30 / 0.14);
+  --shadow-pop: 0 2px 4px rgb(20 15 25 / 0.06), 0 16px 40px -12px rgb(20 15 25 / 0.28);
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Themes ──────────────────────────────────────────────────────────── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: light;
+  /* Notion-style tag tones, light. bg = wash, fg = text on wash, solid = bars and dots. */
+  --tag-gray-bg: #ecebe9;
+  --tag-gray-fg: #55534e;
+  --tag-gray-solid: #9b9893;
+  --tag-brown-bg: #f2e8e1;
+  --tag-brown-fg: #6a4532;
+  --tag-brown-solid: #a87a62;
+  --tag-orange-bg: #fce6d5;
+  --tag-orange-fg: #874212;
+  --tag-orange-solid: #e08a3c;
+  --tag-yellow-bg: #fbf0c6;
+  --tag-yellow-fg: #6a4f08;
+  --tag-yellow-solid: #d6a51c;
+  --tag-green-bg: #ddefe3;
+  --tag-green-fg: #2b5b3c;
+  --tag-green-solid: #57a374;
+  --tag-blue-bg: #dcebf7;
+  --tag-blue-fg: #1d4d78;
+  --tag-blue-solid: #4f8fca;
+  --tag-purple-bg: #ece3f7;
+  --tag-purple-fg: #573884;
+  --tag-purple-solid: #9a72cf;
+  --tag-pink-bg: #f9e1ed;
+  --tag-pink-fg: #862d59;
+  --tag-pink-solid: #d8679f;
+  --tag-red-bg: #fde2de;
+  --tag-red-fg: #8b2c22;
+  --tag-red-solid: #df6352;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root[data-theme="matcha"] {
+  --color-paper: #f3f5ee;
+  --color-surface: #fbfcf8;
+  --color-sunken: #e6ebdd;
+  --color-line: #d9e1cc;
+  --color-line-strong: #b9c7a6;
+  --color-ink: #1f2b1c;
+  --color-ink-soft: #3f4c3a;
+  --color-ink-muted: #56634f;
+  --color-accent: #6f9a5c;
+  --color-accent-deep: #4a7340;
+  --color-accent-ink: #365c2d;
+  --color-accent-wash: #e1edd5;
+  --color-accent-line: #b2cd9f;
 }
 
-@media (prefers-color-scheme: dark) {
+:root[data-theme="ube"] {
+  --color-paper: #f7f4fa;
+  --color-surface: #fdfcfe;
+  --color-sunken: #ece6f3;
+  --color-line: #e1d8ec;
+  --color-line-strong: #c5b6d8;
+  --color-ink: #2b2140;
+  --color-ink-soft: #4c4062;
+  --color-ink-muted: #625579;
+  --color-accent: #8f72bd;
+  --color-accent-deep: #6f4fa0;
+  --color-accent-ink: #563b84;
+  --color-accent-wash: #ece3f7;
+  --color-accent-line: #cbb7e6;
+}
+
+:root[data-theme="mango"] {
+  --color-paper: #fbf7ee;
+  --color-surface: #fffdf8;
+  --color-sunken: #f3ead7;
+  --color-line: #ebdfc5;
+  --color-line-strong: #d5c29e;
+  --color-ink: #33281a;
+  --color-ink-soft: #564734;
+  --color-ink-muted: #6c5d47;
+  --color-accent: #d99a2b;
+  --color-accent-deep: #9a5a0c;
+  --color-accent-ink: #7a4708;
+  --color-accent-wash: #fcecc8;
+  --color-accent-line: #ecc985;
+  /* Mango is already orange, so "not quite" moves to a muted raspberry. */
+  --color-miss: #9e3f4f;
+  --color-miss-wash: #f9e4e6;
+  --color-miss-line: #e4b1b9;
+}
+
+:root[data-theme="sky"] {
+  --color-paper: #f2f5f9;
+  --color-surface: #fbfcfe;
+  --color-sunken: #e4eaf2;
+  --color-line: #d6dfea;
+  --color-line-strong: #b4c3d6;
+  --color-ink: #1c2838;
+  --color-ink-soft: #3c4a5c;
+  --color-ink-muted: #536276;
+  --color-accent: #5a88c0;
+  --color-accent-deep: #3b67a0;
+  --color-accent-ink: #2a4f80;
+  --color-accent-wash: #e0ebf8;
+  --color-accent-line: #b2c9e6;
+}
+
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --color-paper: #16151b;
+  --color-surface: #1f1e26;
+  --color-sunken: #292832;
+  --color-line: #34323e;
+  --color-line-strong: #4b4858;
+  --color-ink: #eeeaf2;
+  --color-ink-soft: #c9c3d2;
+  --color-ink-muted: #a59fb0;
+  --color-accent: #e39ab2;
+  --color-accent-deep: #eaa9bf;
+  --color-accent-ink: #f4bccf;
+  --color-accent-wash: #3b2a34;
+  --color-accent-line: #6e4b5b;
+  --color-miss: #eeb088;
+  --color-miss-wash: #3b2a1f;
+  --color-miss-line: #7a5538;
+  --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -10px rgb(0 0 0 / 0.6);
+  --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 44px -12px rgb(0 0 0 / 0.7);
+
+  --tag-gray-bg: #2f2e35;
+  --tag-gray-fg: #d3cfd9;
+  --tag-gray-solid: #8a8693;
+  --tag-brown-bg: #3a2f2a;
+  --tag-brown-fg: #e6c8b8;
+  --tag-brown-solid: #b08670;
+  --tag-orange-bg: #40291c;
+  --tag-orange-fg: #f5bb8c;
+  --tag-orange-solid: #e08a3c;
+  --tag-yellow-bg: #3d3419;
+  --tag-yellow-fg: #ecd27a;
+  --tag-yellow-solid: #d6a51c;
+  --tag-green-bg: #1f3428;
+  --tag-green-fg: #a3d9b5;
+  --tag-green-solid: #57a374;
+  --tag-blue-bg: #1d2d40;
+  --tag-blue-fg: #a8cbee;
+  --tag-blue-solid: #4f8fca;
+  --tag-purple-bg: #2f2540;
+  --tag-purple-fg: #d0baf0;
+  --tag-purple-solid: #9a72cf;
+  --tag-pink-bg: #3d2231;
+  --tag-pink-fg: #f2b4d2;
+  --tag-pink-solid: #d8679f;
+  --tag-red-bg: #40221f;
+  --tag-red-fg: #f5b0a6;
+  --tag-red-solid: #df6352;
+}
+
+/* Heading face: Notion's "font" menu, in her words. */
+:root[data-font="soft"] {
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+:root[data-font="rounded"] {
+  --font-display: var(--font-nunito), ui-rounded, var(--font-sans);
+}
+
+/* Any element can take a paper's tone; children read --tone-*. */
+[data-tone] {
+  --tone-bg: var(--tag-gray-bg);
+  --tone-fg: var(--tag-gray-fg);
+  --tone-solid: var(--tag-gray-solid);
+}
+[data-tone="brown"] { --tone-bg: var(--tag-brown-bg); --tone-fg: var(--tag-brown-fg); --tone-solid: var(--tag-brown-solid); }
+[data-tone="orange"] { --tone-bg: var(--tag-orange-bg); --tone-fg: var(--tag-orange-fg); --tone-solid: var(--tag-orange-solid); }
+[data-tone="yellow"] { --tone-bg: var(--tag-yellow-bg); --tone-fg: var(--tag-yellow-fg); --tone-solid: var(--tag-yellow-solid); }
+[data-tone="green"] { --tone-bg: var(--tag-green-bg); --tone-fg: var(--tag-green-fg); --tone-solid: var(--tag-green-solid); }
+[data-tone="blue"] { --tone-bg: var(--tag-blue-bg); --tone-fg: var(--tag-blue-fg); --tone-solid: var(--tag-blue-solid); }
+[data-tone="purple"] { --tone-bg: var(--tag-purple-bg); --tone-fg: var(--tag-purple-fg); --tone-solid: var(--tag-purple-solid); }
+[data-tone="pink"] { --tone-bg: var(--tag-pink-bg); --tone-fg: var(--tag-pink-fg); --tone-solid: var(--tag-pink-solid); }
+[data-tone="red"] { --tone-bg: var(--tag-red-bg); --tone-fg: var(--tag-red-fg); --tone-solid: var(--tag-red-solid); }
+/* Theme accent as a tone, for page covers and accent tags. */
+[data-tone="accent"] { --tone-bg: var(--color-accent-wash); --tone-fg: var(--color-accent-ink); --tone-solid: var(--color-accent); }
+
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    background: var(--color-paper);
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    caret-color: var(--color-accent-deep);
+    accent-color: var(--color-accent-deep);
+    font-feature-settings: "kern" 1;
+  }
+
+  ::selection {
+    background: var(--color-accent-wash);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-ink);
+    outline-offset: 3px;
+  }
+
+  a {
+    text-underline-offset: 0.2em;
+    text-decoration-thickness: 1px;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button,
+  a,
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Programmatic focus targets (headings moved to after navigation) don't need a ring. */
+  [tabindex="-1"]:focus {
+    outline: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/*
+ * Headings take the display face she picked. Unlayered on purpose so it wins
+ * over font-bold utilities: each face has its own best weight.
+ */
+h1,
+h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+:root[data-font="soft"] :is(h1, h2) {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  font-variation-settings: "SOFT" 100, "WONK" 0;
+}
+:root[data-font="rounded"] :is(h1, h2) {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+/* ── Buttons and fields ──────────────────────────────────────────────── */
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    min-height: 48px;
+    padding: 0 1.25rem;
+    border-radius: var(--radius-control);
+    font-weight: 700;
+    font-size: var(--text-body);
+    line-height: 1.2;
+    border: 1px solid transparent;
+    transition:
+      background-color 160ms var(--ease-out-quart),
+      border-color 160ms var(--ease-out-quart),
+      color 160ms var(--ease-out-quart),
+      transform 120ms var(--ease-out-quart);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .btn:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background: var(--color-accent-deep);
+    color: var(--color-surface);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-accent-ink);
+  }
+  .btn-primary:disabled {
+    background: var(--color-sunken);
+    color: var(--color-ink-muted);
+    border-color: var(--color-line);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border-color: var(--color-line-strong);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-sunken);
+  }
+  .btn-secondary:disabled {
+    color: var(--color-ink-muted);
+    border-color: var(--color-line);
+  }
+
+  .btn-quiet {
+    background: transparent;
+    color: var(--color-ink-soft);
+    padding: 0 0.75rem;
+  }
+  .btn-quiet:hover:not(:disabled) {
+    background: var(--color-sunken);
+    color: var(--color-ink);
+  }
+
+  .btn-large {
+    min-height: 56px;
+    padding: 0 1.75rem;
+    font-size: var(--text-lead);
+  }
+
+  .link {
+    color: var(--color-accent-deep);
+    font-weight: 700;
+    text-decoration: underline;
+    text-decoration-color: var(--color-accent-line);
+  }
+  .link:hover {
+    text-decoration-color: currentColor;
+  }
+
+  .field {
+    min-height: 48px;
+    width: 100%;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-line-strong);
+    background: var(--color-surface);
+    padding: 0.625rem 0.875rem;
+    /* 16px+ avoids iOS zoom-on-focus */
+    font-size: max(1rem, var(--text-body));
+    color: var(--color-ink);
+  }
+  .field::placeholder {
+    color: var(--color-ink-muted);
+  }
+  .field:focus-visible {
+    outline-offset: 1px;
+    border-color: var(--color-ink);
+  }
+
+  /* Toggle chips used for quiz options and filters. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 44px;
+    padding: 0 0.875rem;
+    border-radius: var(--radius-control);
+    border: 1px solid var(--color-line-strong);
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: var(--text-small);
+    font-weight: 700;
+    cursor: pointer;
+    transition:
+      background-color 160ms var(--ease-out-quart),
+      border-color 160ms var(--ease-out-quart),
+      color 160ms var(--ease-out-quart);
+  }
+  .chip:hover {
+    background: var(--color-sunken);
+  }
+  .chip-on,
+  .chip-on:hover {
+    background: var(--color-accent-ink);
+    border-color: var(--color-accent-ink);
+    color: var(--color-paper);
+  }
+  /* A chip in a paper's own colour, for paper filters. */
+  .chip[data-tone] {
+    border-color: color-mix(in srgb, var(--tone-solid) 45%, transparent);
+  }
+  .chip[data-tone].chip-on {
+    background: var(--tone-bg);
+    border-color: var(--tone-solid);
+    color: var(--tone-fg);
+    box-shadow: inset 0 0 0 1px var(--tone-solid);
+  }
+}
+
+/* ── Workspace pieces ────────────────────────────────────────────────── */
+@layer components {
+  /* Notion-style select tag. Takes its colour from data-tone. */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 1.625rem;
+    padding: 0 0.5rem;
+    border-radius: 6px;
+    background: var(--tone-bg, var(--color-sunken));
+    color: var(--tone-fg, var(--color-ink-soft));
+    font-size: var(--text-meta);
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .tag-dot::before {
+    content: "";
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--tone-solid, var(--color-ink-muted));
+  }
+
+  /* Callout block: an emoji beside text on a tinted ground. */
+  .callout {
+    display: flex;
+    gap: 0.875rem;
+    padding: 1rem 1.125rem;
+    border-radius: var(--radius-panel);
+    background: var(--tone-bg, var(--color-sunken));
+    color: var(--color-ink);
+  }
+  .callout-icon {
+    flex-shrink: 0;
+    font-size: 1.375rem;
+    line-height: 1.6rem;
+  }
+
+  /* A raised panel: the one place the workspace lifts something off the page. */
+  .sheet {
+    position: relative;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-raised);
+  }
+
+  /* Index card for flashcards and notebook entries: a double rule under the header. */
+  .index-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-raised);
+  }
+  .index-card-head {
+    border-bottom: 3px double var(--color-accent-line);
+  }
+
+  /* Display numerals: the heading face, lining and evenly spaced. */
+  .figure {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-variant-numeric: lining-nums tabular-nums;
+    letter-spacing: -0.01em;
+  }
+
+  /* Progress bar in a tone. */
+  .bar {
+    height: 6px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tone-solid, var(--color-accent)) 18%, var(--color-sunken));
+  }
+  .bar > span {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--tone-solid, var(--color-accent));
+    transform-origin: left center;
+    transition: transform 600ms var(--ease-out-expo);
+  }
+
+  /* Database view: light grid lines, a quiet header row. */
+  .db {
+    /* Positioned so sr-only labels inside stay within the table's scroll wrapper on phones. */
+    position: relative;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-small);
+  }
+  .db th {
+    height: 2.25rem;
+    padding: 0 0.75rem;
+    text-align: left;
+    font-size: var(--text-meta);
+    font-weight: 400;
+    color: var(--color-ink-muted);
+    white-space: nowrap;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .db td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--color-line);
+    vertical-align: middle;
+  }
+  .db th + th,
+  .db td + td {
+    border-left: 1px solid var(--color-line);
+  }
+  .db tbody tr {
+    transition: background-color 120ms var(--ease-out-quart);
+  }
+  .db tbody tr:hover {
+    background: color-mix(in srgb, var(--color-sunken) 55%, transparent);
+  }
+
+  /* Page properties: label column, value column. */
+  .props {
+    display: grid;
+    grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+    column-gap: 1rem;
+  }
+  .props > dt {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    color: var(--color-ink-muted);
+    font-size: var(--text-small);
+  }
+  .props > dd {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.5rem;
+    font-size: var(--text-small);
+  }
+
+  /* Popover panel used by the cover and icon pickers. */
+  .pop {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-pop);
+    animation: pop-in 180ms var(--ease-out-expo) both;
+  }
+}
+
+/* ── Checkbox ────────────────────────────────────────────────────────────
+ * The one authored moment: ticking a topic fills the box in her accent and
+ * draws the check like a pen stroke.
+ */
+.tick {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 5px;
+  border: 1.5px solid var(--color-line-strong);
+  background: var(--color-surface);
+  color: var(--color-surface);
+  transition:
+    background-color 200ms var(--ease-out-quart),
+    border-color 200ms var(--ease-out-quart),
+    transform 200ms var(--ease-out-expo);
+}
+.tick svg path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 320ms var(--ease-out-expo) 60ms;
+}
+[aria-checked="true"] > .tick,
+input:checked + .tick {
+  background: var(--color-accent-deep);
+  border-color: var(--color-accent-deep);
+  transform: scale(1.06);
+}
+[aria-checked="true"] > .tick svg path,
+input:checked + .tick svg path {
+  stroke-dashoffset: 0;
+}
+/* The hit area is the whole button, not just the box. */
+.tick-hit {
+  display: inline-grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: var(--radius-control);
+  cursor: pointer;
+}
+.tick-hit:hover > .tick {
+  border-color: var(--color-accent);
+}
+
+/* ── Page header: cover, icon, title ───────────────────────────────────── */
+
+/* Main is a size container so a cover can bleed edge to edge from inside the column. */
+.page-main {
+  container-type: inline-size;
+  --main-pt: 2rem;
+  padding-top: var(--main-pt);
+}
+@media (min-width: 640px) {
+  .page-main {
+    --main-pt: 3rem;
+  }
+}
+
+.cover-wrap {
+  position: relative;
+  width: 100cqw;
+  margin-left: calc(50% - 50cqw);
+  margin-top: calc(-1 * var(--main-pt));
+}
+.cover {
+  position: relative;
+  height: clamp(9rem, 22vw, 15rem);
+  overflow: hidden;
+  background-color: var(--tone-bg);
+}
+.cover-none {
+  height: 4.5rem;
+  background: transparent;
+}
+.cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cover-gingham {
+  --g: color-mix(in srgb, var(--tone-solid) 26%, transparent);
+  background-image:
+    repeating-linear-gradient(90deg, var(--g) 0 22px, transparent 22px 44px),
+    repeating-linear-gradient(0deg, var(--g) 0 22px, transparent 22px 44px);
+}
+.cover-dots {
+  --g: color-mix(in srgb, var(--tone-solid) 50%, transparent);
+  background-image:
+    radial-gradient(circle, var(--g) 4px, transparent 4.5px),
+    radial-gradient(circle, var(--g) 4px, transparent 4.5px);
+  background-size: 32px 32px;
+  background-position:
+    0 0,
+    16px 16px;
+}
+.cover-stripes {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--tone-solid) 34%, transparent) 0 16px,
+    transparent 16px 38px
+  );
+}
+.cover-grid {
+  --g: color-mix(in srgb, var(--tone-solid) 22%, transparent);
+  --G: color-mix(in srgb, var(--tone-solid) 42%, transparent);
+  background-image:
+    linear-gradient(var(--G) 1px, transparent 1px),
+    linear-gradient(90deg, var(--G) 1px, transparent 1px),
+    linear-gradient(var(--g) 1px, transparent 1px),
+    linear-gradient(90deg, var(--g) 1px, transparent 1px);
+  background-size:
+    100px 100px,
+    100px 100px,
+    20px 20px,
+    20px 20px;
+}
+.cover-lined {
+  background-color: var(--tone-bg);
+  background-image:
+    linear-gradient(90deg, transparent 63px, color-mix(in srgb, var(--tag-red-solid) 55%, transparent) 63px 65px, transparent 65px),
+    repeating-linear-gradient(transparent 0 26px, color-mix(in srgb, var(--tone-solid) 55%, transparent) 26px 28px);
+}
+.cover svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Edit buttons on the cover. Always visible (iPads have no hover), quiet until touched. */
+.cover-tools {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.75rem;
+  display: flex;
+  gap: 0.375rem;
+}
+.cover-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 36px;
+  padding: 0 0.75rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  color: var(--color-ink-soft);
+  font-size: var(--text-meta);
+  font-weight: 700;
+  backdrop-filter: blur(6px);
+  transition: background-color 160ms var(--ease-out-quart), color 160ms var(--ease-out-quart);
+}
+.cover-tool:hover {
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/* The page icon sits half over the cover, like a sticker on the banner. */
+.page-icon {
+  display: grid;
+  place-items: center;
+  width: 5.5rem;
+  height: 5.5rem;
+  margin-top: -2.75rem;
+  border-radius: 14px;
+  font-size: 4rem;
+  line-height: 1;
+  position: relative;
+  transition: background-color 160ms var(--ease-out-quart);
+}
+.page-icon:hover {
+  background: color-mix(in srgb, var(--color-sunken) 70%, transparent);
+}
+.page-icon.no-cover {
+  margin-top: 0;
+}
+@media (max-width: 639px) {
+  .page-icon {
+    width: 4.5rem;
+    height: 4.5rem;
+    font-size: 3.25rem;
+    margin-top: -2.25rem;
+  }
+}
+
+/* Sidebar page links */
+.side-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 40px;
+  padding: 0 0.625rem;
+  border-radius: 6px;
+  color: var(--color-ink-soft);
+  font-size: var(--text-small);
+  font-weight: 700;
+  text-decoration: none;
+  transition: background-color 120ms var(--ease-out-quart), color 120ms var(--ease-out-quart);
+}
+.side-link:hover {
+  background: color-mix(in srgb, var(--color-line) 60%, transparent);
+  color: var(--color-ink);
+}
+.side-link[aria-current="page"] {
+  background: var(--color-line);
+  color: var(--color-ink);
+}
+.side-emoji {
+  display: inline-grid;
+  place-items: center;
+  width: 1.375rem;
+  font-size: 1.0625rem;
+  line-height: 1;
+}
+
+/* ── Motion ──────────────────────────────────────────────────────────── */
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * Line drawings are drawn in once, like ink, and their petals wash in after.
+ * Paths opt in with pathLength="1" and the .ink class.
+ */
+@keyframes ink {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes wash {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.drawn .ink {
+  stroke-dasharray: 1;
+  animation: ink 1400ms var(--ease-out-expo) both;
+}
+.drawn .ink-late {
+  animation-delay: 350ms;
+}
+.drawn .wash {
+  animation: wash 900ms var(--ease-out-quart) 700ms both;
+}
+
+/* Switching themes crossfades the whole workspace instead of snapping. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 420ms;
+  animation-timing-function: var(--ease-out-quart);
+}
+
+/* Topic reviewers rendered from Markdown. */
+.reviewer {
+  line-height: 1.65;
+}
+.reviewer > * + * {
+  margin-top: 0.9em;
+}
+.reviewer h1,
+.reviewer h2 {
+  font-size: var(--text-title);
+  margin-top: 1.6em;
+}
+.reviewer h3 {
+  font-size: var(--text-lead);
+  font-weight: 700;
+  margin-top: 1.4em;
+}
+.reviewer h4 {
+  font-weight: 700;
+  margin-top: 1.2em;
+}
+.reviewer ul,
+.reviewer ol {
+  padding-left: 1.4em;
+}
+.reviewer ul {
+  list-style: disc;
+}
+.reviewer ol {
+  list-style: decimal;
+}
+.reviewer li + li {
+  margin-top: 0.3em;
+}
+.reviewer li::marker {
+  color: var(--color-accent);
+}
+.reviewer strong {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.reviewer blockquote {
+  background: var(--color-accent-wash);
+  padding: 0.875rem 1.125rem;
+  border-radius: var(--radius-panel);
+}
+.reviewer table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+  display: block;
+  overflow-x: auto;
+}
+.reviewer th,
+.reviewer td {
+  border: 1px solid var(--color-line);
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+.reviewer th {
+  background: var(--color-sunken);
+}
+.reviewer code {
+  font-size: 0.9em;
+  background: var(--color-sunken);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+}
+
+/* Flashcard content from her Anki decks. */
+.card-html img {
+  max-width: 100%;
+  height: auto;
+  margin: 0.5rem auto;
+  border-radius: 8px;
+}
+.card-html ul,
+.card-html ol {
+  padding-left: 1.3em;
+  text-align: left;
+}
+.card-html ul {
+  list-style: disc;
+}
+.card-html ol {
+  list-style: decimal;
+}
+.card-html .cloze {
+  font-weight: 700;
+  color: var(--color-accent-ink);
+}
+.card-html .cloze-answer {
+  font-weight: 700;
+  color: var(--color-accent-ink);
+  background: var(--color-accent-wash);
+  border-radius: 4px;
+  padding: 0 0.2em;
+}
+.card-html table {
+  border-collapse: collapse;
+  margin: 0.5rem auto;
+}
+.card-html td,
+.card-html th {
+  border: 1px solid var(--color-line);
+  padding: 0.3rem 0.5rem;
+}
+
+/* Calm reveal used once, when the rationale opens after an answer. */
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.reveal {
+  animation: reveal 280ms var(--ease-out-quart) both;
+}
+
+/*
+ * Reduced motion: drop movement (slides, presses, smooth scrolling) but keep
+ * quick colour and opacity changes, so state feedback is still visible.
+ */
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal {
+    animation-name: reveal-fade;
+  }
+  .pop {
+    animation: reveal-fade 120ms linear both;
+  }
+  .btn:active:not(:disabled) {
+    transform: none;
+  }
+  .drawn .ink,
+  .drawn .wash {
+    animation: none;
+  }
+  [aria-checked="true"] > .tick,
+  input:checked + .tick {
+    transform: none;
+  }
+  .tick svg path,
+  .bar > span {
+    transition: none;
+  }
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
+}
+
+/* Room for the iPad home indicator / notch when installed full-screen. */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
 }
