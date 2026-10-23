@@ -4,7 +4,26 @@ An in-app 3D body she can turn, peel and tap, tied to her own A&P book, her lect
 Read `PRODUCT.md` and `DESIGN.md` first: the same principles apply here (calm, one thing at a time, iPad-first,
 honest), and every colour comes from the theme tokens so all six themes keep working.
 
-Status: **planned, not started.** The book content it builds on is already in the app (see "What already exists").
+Status: **phase 0 built (Oct 24, 2026), waiting for the iPad check.** `npm run anatomy` converts the skeleton and the
+heart; `/anatomy` shows them (tap to name, fade the rest, Reset view; add `?fps` for a frame counter). Not yet in the
+sidebar. The book content it builds on is already in the app (see "What already exists").
+
+### What phase 0 found (read before phase 1)
+
+- **The PART-OF tree is regional, not by system.** The femur sits under "left thigh" → "left lower limb"; the
+  "skeletal system" root has the skull, spine and ribs but no limbs, plus some eye parts. So the skeleton is chosen by
+  bone names (`scripts/anatomy/systems.mts`), not by walking a root. Expect the same for muscles, vessels and nerves:
+  check each system's member list in `public/anatomy/report.md` before trusting a root.
+- **No ventricle walls.** The heart has atrial walls, valves, papillary muscles, coronary vessels and the four chamber
+  *cavities* (blood volumes), but no ventricular myocardium mesh. The cavities stand in for the ventricles' shape.
+- `partof_element_parts.txt` already lists every element file under a compound concept (no tree walk needed for a
+  root). Two OBJ files have empty headers (FJ1450, FJ1656) and are left out.
+- The OBJ headers still carry the old CC BY-SA 2.1 JP notice; the license page says CC BY 4.0 since 2025-02-27.
+- No `obj2gltf`: the OBJs are plain triangles with matching normals, so `convert.mts` reads them directly.
+- Sizes: skeleton 238 structures, 3.73 MB at 60% simplification (4.65 MB unsimplified, 3.43 MB at 40%); heart 40
+  structures, 0.83 MB. The viewer's JS is a separate ~1 MB chunk (uncompressed) loaded only on `/anatomy`.
+- In the in-app browser preview a hidden pane gets no animation frames, so the canvas looks blank there; that's the
+  preview, not the page.
 
 ---
 
@@ -117,8 +136,8 @@ Node 22 `.mts` scripts, same style as `scripts/ingest/`. Add `npm run anatomy`.
 
 Package versions (current and React 19.3 compatible as of Oct 2026; re-check before installing):
 `three@0.186.1`, `@react-three/fiber@9.8.1` (peer: react ≥19 <19.4), `@react-three/drei@10.7.9`;
-dev: `@gltf-transform/core`, `@gltf-transform/functions`, `@gltf-transform/extensions` (4.5.x), `meshoptimizer@1.3.0`,
-`obj2gltf@3.2.0`.
+dev: `@gltf-transform/core`, `@gltf-transform/functions`, `@gltf-transform/extensions` (4.5.1), `meshoptimizer@1.3.0`,
+`@types/three@0.186.0`. (Installed in phase 0, pinned exactly.)
 
 ---
 

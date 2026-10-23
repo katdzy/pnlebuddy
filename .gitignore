@@ -49,3 +49,8 @@ next-env.d.ts
 # netlify
 .netlify
 /deno.lock
+
+# 3D anatomy models (npm run anatomy): big, rebuilt from BodyParts3D on this Mac
+/public/anatomy/*.glb
+/public/anatomy/manifest.json
+/public/anatomy/report.md

@@ -16,6 +16,7 @@ countdowns, one thing at a time, honest about performance.
 | `npm run typecheck` / `npm run lint` | Must pass before every commit |
 | `python3 scripts/ingest/extract.py` | Step 1: PDFs in her RN2027 folder → text, layout XML, OCR (needs `brew install poppler ocrmypdf`) |
 | `npm run ingest` | Step 2: text + Anki decks → `public/content/*.json`, `src/content/generated/reading.json`, `content-report.md` |
+| `npm run anatomy` | BodyParts3D (in `~/Fel Reviewers/anatomy-src`, override `ANATOMY_SRC`) → `public/anatomy/*.glb` for `/anatomy`; see `docs/ANATOMY_3D_PLAN.md` |
 
 Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DIR=...`.
 

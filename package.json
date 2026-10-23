@@ -12,21 +12,30 @@
     "icons": "node scripts/generate-icons.mjs",
     "dev:lan": "next dev -H 0.0.0.0",
     "start:lan": "next start -H 0.0.0.0",
-    "ingest": "node --no-warnings scripts/ingest/build.mts"
+    "ingest": "node --no-warnings scripts/ingest/build.mts",
+    "anatomy": "node --no-warnings scripts/anatomy/convert.mts"
   },
   "dependencies": {
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.1",
     "marked": "^15.0.12",
     "next": "16.4.2",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
   },
   "devDependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.18.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "0.186.0",
     "eslint": "^9",
     "eslint-config-next": "16.4.2",
+    "meshoptimizer": "1.3.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^3.2.7"

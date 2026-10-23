@@ -35,6 +35,9 @@
   --color-miss-wash: #f8eade;
   --color-miss-line: #e0bb9c;
 
+  /* The 3D anatomy models' base colour (the heart uses --tag-red-solid). */
+  --color-bone: #e6ddd0;
+
   --font-sans: var(--font-atkinson), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-display: var(--font-bricolage), var(--font-sans);
 
@@ -184,6 +187,7 @@
   --color-miss: #eeb088;
   --color-miss-wash: #3b2a1f;
   --color-miss-line: #7a5538;
+  --color-bone: #aaa49b;
   --shadow-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -10px rgb(0 0 0 / 0.6);
   --shadow-pop: 0 2px 6px rgb(0 0 0 / 0.35), 0 18px 44px -12px rgb(0 0 0 / 0.7);
 
@@ -468,6 +472,23 @@ h2 {
 }
 
 /* ── Workspace pieces ────────────────────────────────────────────────── */
+
+/* The 3D anatomy canvas: one sunken stage, tall enough to turn the body in. */
+.anatomy-stage {
+  position: relative;
+  height: clamp(22rem, 66svh, 46rem);
+  overflow: hidden;
+  border-radius: var(--radius-panel);
+  background: var(--color-sunken);
+  touch-action: none;
+}
+.anatomy-card {
+  max-width: 24rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--color-surface) 92%, transparent);
+  border: 1px solid var(--color-line);
+}
 @layer components {
   /* Notion-style select tag. Takes its colour from data-tone. */
   .tag {
