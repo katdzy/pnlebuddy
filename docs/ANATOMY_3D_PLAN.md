@@ -4,11 +4,19 @@ An in-app 3D body she can turn, peel and tap, tied to her own A&P book, her lect
 Read `PRODUCT.md` and `DESIGN.md` first: the same principles apply here (calm, one thing at a time, iPad-first,
 honest), and every colour comes from the theme tokens so all six themes keep working.
 
-Status: **phase 1 built (Oct 24, 2026); phase 0 still waits for the iPad frame-rate check.** `npm run anatomy` builds
-all 11 system files (1,654 structures, 14.5 MB), `structures.json` and a report; `/anatomy` has a chip per system
-(only the skeleton on at first), arteries red and veins blue, tap to name, Reset view, `?fps`. It's in the sidebar and
-the tablet top bar; phones reach it from Settings. Credits at `/anatomy/credits`. Next: phase 2 (the tap card with the
-book's definition, x-ray, search, list mode, deep links).
+Status: **phase 2 built (Oct 24, 2026); the iPad frame-rate check from phase 0 is still open.** `npm run anatomy`
+builds all 11 system files (1,654 structures, 14.5 MB), `structures.json` and a report. `/anatomy` has:
+- a chip per system that cycles shown → see-through (x-ray: faint, and taps pass through it) → hidden;
+- tap or search a structure → a card with her book's glossary entry word for word (aka, origin, printed pages), saying
+  whether it's the structure itself, a broader term or the larger structure it's part of; chapters, lecture notes and
+  a link to the topic page; "Zoom to it" and "Show only this". On iPad landscape the card sits beside the canvas; on
+  narrower screens it's a sheet over the bottom of the canvas, and the view shifts up to stay clear of it;
+- search that also finds glossary terms the model doesn't have ("SA node"), shown as book-only cards;
+- a List view (all structures by system, filtered by the search box) for screen readers and browsing;
+- the view in the URL (`?s=skeletal,heart&x=muscular&f=FMA24475`, or `&t=<term>`), so reloads keep her place;
+- "Open in 3D" on the A&P topic pages and a link on the tracker's A&P area (`TOPIC_SYSTEMS` in `src/lib/anatomy.ts`);
+- the service worker serves the hashed model files from its cache once fetched.
+Next: phase 3 ("Practice this", the identify quiz, v4 storage).
 
 ### What phase 1 found
 

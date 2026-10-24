@@ -255,6 +255,11 @@ function PaperSection({
             <h3 className="flex items-center gap-2 text-small font-bold text-ink-soft">
               <span className="size-2 rounded-full bg-[var(--tone-solid)]" aria-hidden="true" />
               {area.name}
+              {area.id === "int-anaphy" && (
+                <Link href="/anatomy" className="ml-auto font-normal">
+                  Open the 3D body
+                </Link>
+              )}
             </h3>
             <div className="mt-1 overflow-x-auto">
               <table className="db min-w-[38rem] table-fixed">

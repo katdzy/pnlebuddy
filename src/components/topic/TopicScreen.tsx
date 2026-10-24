@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { getArea, getPaper, getTopic } from "@/content/taxonomy";
+import { anatomyHref } from "@/lib/anatomy";
 import { setCardScope } from "@/lib/cardScope";
 import { cardCountsByTopic } from "@/lib/cards";
 import { formatDate, plural } from "@/lib/copy";
@@ -11,7 +12,7 @@ import { computeTopicStats } from "@/lib/insights";
 import { actions } from "@/lib/store";
 import { Meter, PaperTag, Tick, usePaperTone } from "../Bits";
 import { WithData, type Ready } from "../Gate";
-import { ArrowRightIcon, BookIcon, CheckIcon } from "../Icons";
+import { ArrowRightIcon, BoneIcon, BookIcon, CheckIcon } from "../Icons";
 import { PageHeader } from "../look/PageHeader";
 import { StatusTag } from "../tracker/TrackerScreen";
 
@@ -52,6 +53,7 @@ function Topic({ data, bank, content, now, topicId, reviewerHtml, reading }: Rea
   const questions = bank.questionsInTopic(topicId);
   const styles = { pnle: questions.filter((q) => q.style === "pnle").length, nclex: questions.filter((q) => q.style === "nclex").length };
   const highYield = questions.filter((q) => (q.seenIn ?? 1) > 1).length;
+  const in3d = anatomyHref(topicId);
 
   function practice() {
     actions.startTopic(topicId, 12);
@@ -138,6 +140,11 @@ function Topic({ data, bank, content, now, topicId, reviewerHtml, reading }: Rea
         <button type="button" className="btn btn-secondary btn-large" onClick={studyCards} disabled={!totalCards}>
           Study flashcards{cards?.due ? ` (${cards.due} due)` : ""}
         </button>
+        {in3d && (
+          <Link href={in3d} className="btn btn-secondary btn-large no-underline">
+            <BoneIcon size={20} /> Open in 3D
+          </Link>
+        )}
       </div>
       <p className="mt-3 text-meta text-ink-muted">
         {plural(questions.length, "question")}: {styles.pnle} board-style (PNLE), {styles.nclex} NCLEX-style

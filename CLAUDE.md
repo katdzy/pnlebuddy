@@ -39,7 +39,8 @@ Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DI
   `insights.ts` (topic and paper stats), `storage.ts` (versioned localStorage, v1→v2→v3 migration; v3 added her
   `topicsDone` checklist), `look.ts` (themes, covers, icons, paper colours; see `DESIGN.md`).
 - **Screens** `src/components/`: today, tracker, topic (reviewer + "read in your files"), quiz, study (focus mode),
-  cards, notebook, settings.
+  cards, notebook, settings, anatomy (3D body: `Viewer` is three.js, loaded only there; page logic in
+  `src/lib/anatomy.ts`; see `docs/ANATOMY_3D_PLAN.md`).
 - **Reviewers** are Markdown files in `content/reviewers/<topic-id>.md`, rendered at build time on `/topics/<id>`.
 
 ## Rules
