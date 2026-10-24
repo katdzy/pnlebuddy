@@ -8,16 +8,19 @@ import { computePaperStats, computeTopicStats } from "../insights";
 import { coverFor, defaultLook, DEFAULT_TONES, iconFor, sanitizeLook } from "../look";
 import { applyAnswer, BOX_INTERVAL_DAYS, buildReviewQueue, DAY_MS, describeDue, shuffle } from "../scheduler";
 import {
+  answerIdentify,
   answerQuestion,
   finishSession,
   goToNextQuestion,
   goToQuestion,
   planSession,
   quizPool,
+  recordAnatomyMistake,
   recordMistake,
   recordQuizMistakes,
   reviewCard,
   setTopicDone,
+  startPickedSession,
   startQuiz,
   startRecommendedSession,
   type QuizSpec,
@@ -149,6 +152,12 @@ describe("practice session", () => {
     const { data: after, record } = finishSession(data, bank, T0 + 5000);
     expect(after.activeSession).toBeNull();
     expect(record).toMatchObject({ answeredCount: 1, correctCount: 0, byPaper: { np3: [0, 1] } });
+  });
+
+  it("starts practice from a picked list, skipping ids that aren't in the bank", () => {
+    const data = startPickedSession(emptyData(), bank, "Practice: femur", ["q-2-1", "gone", "q-0-0", "q-2-1"], T0, "s1");
+    expect(data.activeSession).toMatchObject({ mode: "topic", title: "Practice: femur", questionIds: ["q-2-1", "q-0-0"] });
+    expect(startPickedSession(emptyData(), bank, "x", ["gone"], T0, "s1").activeSession).toBeNull();
   });
 });
 
@@ -293,7 +302,7 @@ describe("storage", () => {
     const store = memoryStorage({ [LEGACY_KEY]: JSON.stringify(v1) });
     const { data, migrated } = loadData(store);
     expect(migrated).toBe(true);
-    expect(data.version).toBe(3);
+    expect(data.version).toBe(4);
     expect(data.topicsDone).toEqual({});
     expect(data.profile).toMatchObject({ name: "Fel", preferredMinutes: 10 });
     expect(data.progress).toEqual({});
@@ -304,15 +313,47 @@ describe("storage", () => {
     expect(store.getItem(LEGACY_KEY)).not.toBeNull(); // old copy left untouched
   });
 
-  it("migrates v2 data to v3, keeping everything and starting an empty checklist", () => {
+  it("migrates v2 data to v4, keeping everything and starting an empty checklist", () => {
     const v2 = { ...emptyData(), version: 2, profile: { ...emptyData().profile, name: "Fel" }, reviewersRead: { "np3-fluids-electrolytes": T0 } } as Record<string, unknown>;
     delete v2.topicsDone;
     const store = memoryStorage({ [STORAGE_KEY]: JSON.stringify(v2) });
     const { data } = loadData(store);
-    expect(data.version).toBe(3);
+    expect(data.version).toBe(4);
     expect(data.profile.name).toBe("Fel");
     expect(data.reviewersRead).toEqual({ "np3-fluids-electrolytes": T0 });
     expect(data.topicsDone).toEqual({});
+  });
+
+  it("migrates v3 data to v4, keeping her progress and notebook and starting the 3D quiz empty", () => {
+    let v3: StudyData = { ...emptyData(), profile: { ...emptyData().profile, name: "Fel" }, topicsDone: { "np5-mood": T0 } };
+    v3 = reviewCard(v3, "c1", "np5-mood", 3, T0);
+    v3 = recordMistake(v3, bank, { questionId: "q-0-0", sessionId: "s", chosen: ["A"], category: "concept", note: "COPAR steps" }, T0, "m1");
+    const stored = { ...v3, version: 3 } as Record<string, unknown>;
+    delete stored.anatomy;
+    const store = memoryStorage({ [STORAGE_KEY]: JSON.stringify(stored) });
+    const { data } = loadData(store);
+    expect(data.version).toBe(4);
+    expect(data.anatomy).toEqual({});
+    expect(data.profile.name).toBe("Fel");
+    expect(data.topicsDone).toEqual({ "np5-mood": T0 });
+    expect(data.cards.c1).toEqual(v3.cards.c1);
+    expect(data.mistakes).toEqual(v3.mistakes);
+  });
+
+  it("keeps 3D quiz states and anatomy notebook entries, and drops malformed ones", () => {
+    let d = answerIdentify(emptyData(), "FMA9611", "int-ap-skeletal", false, T0);
+    d = recordAnatomyMistake(
+      d,
+      { fma: "FMA9611", topicId: "int-ap-skeletal", system: "Skeleton", sessionId: "r1", chosen: "Left tibia", answer: "Left femur", book: "femur: x" },
+      T0,
+      "m1",
+    );
+    const store = memoryStorage();
+    saveData(store, d);
+    const back = loadData(store).data;
+    expect(back.anatomy).toEqual(d.anatomy);
+    expect(back.mistakes[0]).toMatchObject({ kind: "anatomy", itemId: "FMA9611", snapshot: { chosenText: "Left tibia", answerText: "Left femur" } });
+    expect(sanitize({ ...d, anatomy: { FMA1: [1, 2], FMA2: d.anatomy.FMA9611 } }).anatomy).toEqual({ FMA2: d.anatomy.FMA9611 });
   });
 
   it("keeps her topic checklist and drops malformed ticks", () => {

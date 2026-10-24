@@ -12,6 +12,9 @@
  * v2 → v3 adds `topicsDone` (her own topic checklist). Nothing else changed, so
  * v2 data is read as-is and the new field starts empty. The storage key stays
  * "pnlebuddy:v2" so existing progress is found where it always was.
+ *
+ * v3 → v4 adds `anatomy` (the 3D identify quiz's review states) and "anatomy" notebook entries. Again nothing else
+ * changed: v2 and v3 data are read as-is and the new field starts empty.
  */
 
 import { PAPERS, type PaperId } from "@/content/taxonomy";
@@ -34,10 +37,12 @@ export const LEGACY_KEY = "pnlebuddy:v1";
 const MAX_ATTEMPTS = 6000;
 const MAX_SESSIONS = 400;
 const MAX_QUIZ_ANSWER_RECORDS = 40;
+/** Versions `sanitize` reads directly (v1 is migrated). Also what a backup may be. */
+export const STORED_VERSIONS = [2, 3, 4];
 
 export function emptyData(): StudyData {
   return {
-    version: 3,
+    version: 4,
     profile: { name: "", preferredMinutes: 25, newCardsPerDay: 20, focusPaper: null },
     progress: {},
     attempts: [],
@@ -49,6 +54,7 @@ export function emptyData(): StudyData {
     cardLog: {},
     reviewersRead: {},
     topicsDone: {},
+    anatomy: {},
   };
 }
 
@@ -123,7 +129,7 @@ function sanitizeMistakes(v: unknown): MistakeEntry[] {
     (m): m is MistakeEntry =>
       isObj(m) &&
       isStr(m.id) &&
-      (m.kind === "question" || m.kind === "card") &&
+      (m.kind === "question" || m.kind === "card" || m.kind === "anatomy") &&
       isStr(m.itemId) &&
       isChoices(m.chosen) &&
       isStr(m.category) &&
@@ -222,10 +228,10 @@ function sanitizeCardLog(v: unknown): Record<string, [number, number]> {
 /** Validate unknown input (from storage or an imported backup) into StudyData. */
 export function sanitize(input: unknown): StudyData {
   if (isObj(input) && input.version === 1) return migrateV1(input);
-  // v2 and v3 share a shape; v2 simply has no topicsDone yet.
-  if (!isObj(input) || (input.version !== 2 && input.version !== 3)) return emptyData();
+  // v2, v3 and v4 share a shape; v2 has no topicsDone yet, and v2–v3 no anatomy.
+  if (!isObj(input) || !STORED_VERSIONS.includes(input.version as number)) return emptyData();
   return {
-    version: 3,
+    version: 4,
     profile: sanitizeProfile(input.profile),
     progress: sanitizeProgress(input.progress),
     attempts: sanitizeAttempts(input.attempts),
@@ -237,6 +243,7 @@ export function sanitize(input: unknown): StudyData {
     cardLog: sanitizeCardLog(input.cardLog),
     reviewersRead: sanitizeSaved(input.reviewersRead),
     topicsDone: sanitizeSaved(input.topicsDone),
+    anatomy: sanitizeCards(input.anatomy),
   };
 }
 

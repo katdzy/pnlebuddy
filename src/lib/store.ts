@@ -14,7 +14,7 @@ import { getBank } from "./content";
 import type { Flashcard } from "./content-types";
 import * as S from "./session";
 import { lookActions } from "./lookStore";
-import { emptyData, loadData, sanitize, saveData, STORAGE_KEY } from "./storage";
+import { emptyData, loadData, sanitize, saveData, STORAGE_KEY, STORED_VERSIONS } from "./storage";
 import type { CardRating, ChoiceId, MistakeCategory, SessionRecord, StudyData } from "./types";
 
 export interface StoreSnapshot {
@@ -132,6 +132,9 @@ export const actions = {
   startList(mode: "mistakes" | "saved", questionIds: string[]) {
     withBank((d, b) => S.startListSession(d, b, mode, questionIds, Date.now(), newId()));
   },
+  startPicked(title: string, questionIds: string[]) {
+    withBank((d, b) => S.startPickedSession(d, b, title, questionIds, Date.now(), newId()));
+  },
   startQuiz(spec: S.QuizSpec) {
     withBank((d, b) => S.startQuiz(d, b, spec, Date.now(), newId()));
   },
@@ -179,6 +182,12 @@ export const actions = {
   toggleSaved(questionId: string) {
     update((d) => S.toggleSaved(d, questionId, Date.now()));
   },
+  answerIdentify(fma: string, topicId: string, correct: boolean) {
+    update((d) => S.answerIdentify(d, fma, topicId, correct, Date.now()));
+  },
+  recordAnatomyMistake(input: S.AnatomyMistakeInput) {
+    update((d) => S.recordAnatomyMistake(d, input, Date.now(), newId()));
+  },
   reviewCard(cardId: string, topicId: string, rating: CardRating) {
     update((d) => S.reviewCard(d, cardId, topicId, rating, Date.now()));
   },
@@ -202,7 +211,7 @@ export const actions = {
     try {
       const parsed: unknown = JSON.parse(json);
       const version = (parsed as { version?: unknown })?.version;
-      if (typeof parsed !== "object" || parsed === null || (version !== 1 && version !== 2 && version !== 3)) return false;
+      if (typeof parsed !== "object" || parsed === null || (version !== 1 && !STORED_VERSIONS.includes(version as number))) return false;
       commit(sanitize(parsed));
       const look = (parsed as { look?: unknown }).look;
       if (look) lookActions.replace(look);

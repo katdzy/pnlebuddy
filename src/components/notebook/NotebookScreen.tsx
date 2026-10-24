@@ -15,7 +15,7 @@ import { PenUnderline } from "../Botanicals";
 import { MistakeList } from "./MistakeList";
 import { SavedList } from "./SavedList";
 
-type Tab = "questions" | "cards" | "saved" | "understood";
+type Tab = "questions" | "cards" | "anatomy" | "saved" | "understood";
 
 export function NotebookScreen() {
   return <WithData label="Opening your notebook">{(ready) => <Notebook {...ready} />}</WithData>;
@@ -40,6 +40,7 @@ function Notebook({ data, bank }: Ready) {
   const open = data.mistakes.filter((m) => !m.resolvedAt && inPaper(m.snapshot.topicId));
   const questions = open.filter((m) => m.kind === "question").reverse();
   const cards = open.filter((m) => m.kind === "card").reverse();
+  const structures = open.filter((m) => m.kind === "anatomy").reverse();
   const understood = data.mistakes.filter((m) => m.resolvedAt && inPaper(m.snapshot.topicId)).reverse();
   const savedIds = Object.keys(data.saved).filter((id) => {
     const q = bank.question(id);
@@ -53,6 +54,10 @@ function Notebook({ data, bank }: Ready) {
   const totalQ = [...byCategory.values()].reduce((a, b) => a + b, 0);
 
   function balikan() {
+    if (tab === "anatomy") {
+      router.push("/anatomy?quiz=notebook");
+      return;
+    }
     if (data.activeSession) {
       setBlocked(true);
       return;
@@ -70,10 +75,13 @@ function Notebook({ data, bank }: Ready) {
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "questions", label: "Questions", count: questions.length },
     { id: "cards", label: "Flashcards", count: cards.length },
+    { id: "anatomy", label: "3D body", count: structures.length },
     { id: "saved", label: "Saved", count: savedIds.length },
     { id: "understood", label: "Understood", count: understood.length },
   ];
-  const reviewable = tab === "questions" ? questions.length : tab === "cards" ? cards.length : tab === "saved" ? savedIds.length : 0;
+  const reviewable = { questions: questions.length, cards: cards.length, anatomy: structures.length, saved: savedIds.length, understood: 0 }[tab];
+  // How many one review takes: a practice session, every saved card, or an identify round.
+  const perReview = { questions: 25, cards: reviewable, anatomy: 10, saved: 25, understood: 0 }[tab];
 
   return (
     <div>
@@ -130,7 +138,7 @@ function Notebook({ data, bank }: Ready) {
       {reviewable > 0 && (
         <div className="mt-6 flex flex-wrap items-center gap-4">
           <button type="button" className="btn btn-primary" onClick={balikan}>
-            Balikan: review {Math.min(reviewable, tab === "cards" ? reviewable : 25)}
+            Balikan: review {Math.min(reviewable, perReview)}
             <ArrowRightIcon size={20} />
           </button>
           {blocked && (
@@ -144,6 +152,7 @@ function Notebook({ data, bank }: Ready) {
       <div id="notebook-panel" role="tabpanel" className="mt-8">
         {tab === "questions" && <MistakeList entries={questions} empty="No open question mistakes. When you miss one, save it here with a note." />}
         {tab === "cards" && <MistakeList entries={cards} empty="No flashcards saved. Tap “Save to notebook” on a card you keep missing." />}
+        {tab === "anatomy" && <MistakeList entries={structures} empty="No structures here. When you miss one in the 3D body's quiz, it's saved here." />}
         {tab === "saved" && <SavedList ids={savedIds} paper={paper} />}
         {tab === "understood" && <MistakeList entries={understood} empty="Notes you mark as understood move here." />}
       </div>

@@ -4,7 +4,7 @@ An in-app 3D body she can turn, peel and tap, tied to her own A&P book, her lect
 Read `PRODUCT.md` and `DESIGN.md` first: the same principles apply here (calm, one thing at a time, iPad-first,
 honest), and every colour comes from the theme tokens so all six themes keep working.
 
-Status: **phase 2 built (Oct 24, 2026); the iPad frame-rate check from phase 0 is still open.** `npm run anatomy`
+Status: **phase 3 built (Oct 24, 2026); the iPad frame-rate check from phase 0 is still open.** `npm run anatomy`
 builds all 11 system files (1,654 structures, 14.5 MB), `structures.json` and a report. `/anatomy` has:
 - a chip per system that cycles shown → see-through (x-ray: faint, and taps pass through it) → hidden;
 - tap or search a structure → a card with her book's glossary entry word for word (aka, origin, printed pages), saying
@@ -15,8 +15,28 @@ builds all 11 system files (1,654 structures, 14.5 MB), `structures.json` and a 
 - a List view (all structures by system, filtered by the search box) for screen readers and browsing;
 - the view in the URL (`?s=skeletal,heart&x=muscular&f=FMA24475`, or `&t=<term>`), so reloads keep her place;
 - "Open in 3D" on the A&P topic pages and a link on the tracker's A&P area (`TOPIC_SYSTEMS` in `src/lib/anatomy.ts`);
-- the service worker serves the hashed model files from its cache once fetched.
-Next: phase 3 ("Practice this", the identify quiz, v4 storage).
+- the service worker serves the hashed model files from its cache once fetched;
+- (phase 3) **Quiz me**: a structure lights up (filled with the accent, the rest faded) and she names it from four;
+  ten a round, from one system or her notebook's misses (`?quiz=<system>` or `?quiz=notebook`). Wrong choices are the
+  eight most alike structures in the system (close by and of similar size, never the other side). Asked: structures
+  linked to her glossary, minus branches, tributaries and segmental vessels (`isQuizzable`): 969. Due first,
+  then new ones biggest first. Each answer is a review in `StudyData.anatomy` (v4, `rateIdentify`: a miss is Again; a
+  right answer is Good but doesn't move a structure that isn't due). Misses go to the notebook's **3D body** tab as
+  `kind: "anatomy"` entries (plain-text snapshot with her book's entry, "See it in 3D", Balikan starts a round);
+- (phase 3) **Practice this** on the card: questions whose stem or choices mention the book term or an aka (whole
+  words, singular or plural, "SA node" from "sinoatrial (SA) node"), her A&P book's first, unanswered first; up to 25
+  start a practice session.
+Next: phase 4 (nursing overlays, after she checks the pins), and the iPad check.
+
+### What phase 3 found
+
+- **Left/right in a book term matters.** The phase 1 matcher dropped sides before lookup, so "Trunk of right coronary
+  artery" linked to the *left* coronary artery. A term that names a side is now only found with that side; 6 links
+  changed (5 right-coronary branches, the right gastric artery), nothing else.
+- **Nearest isn't most alike.** In anatomical position the hands hang beside the thighs, so the femur's nearest
+  neighbours were finger bones. Distractors weigh size as well as distance.
+- **The tap highlight is too quiet for a quiz** on the heart (a rose tint on a red heart, under faded layers): the quiz
+  fills the target with the accent and fades the rest to 7%.
 
 ### What phase 1 found
 
@@ -213,6 +233,10 @@ dev: `@gltf-transform/core`, `@gltf-transform/functions`, `@gltf-transform/exten
 
 ## 6. Progress (phase 3, identify quiz)
 
+> As built: `anatomy` in `StudyData` v4 (migration and tests in `storage.ts` / `logic.test.ts`); misses are
+> `kind: "anatomy"` notebook entries rather than `"card"`, so the notebook can show what she chose and link to the 3D
+> view.
+
 Identify results need their own spaced-repetition state. Add `anatomy: Record<fmaId, CardState>` to `StudyData` as
 **v4 (v3 is her topic checklist) with a migration and a test in `storage.ts`** (CLAUDE.md rule 4). Reuse `rateCard` from `cards.ts`. Misses go to the
 notebook as `kind: "card"` mistakes with a snapshot (name, system, book definition) so the notebook still works if
@@ -227,7 +251,7 @@ the model changes.
 | 0. Spike | Convert Skeletal + heart only; bare `/anatomy` page | Runs at ≥ 45 fps on her iPad, tap selects the right bone, page weight < 8 MB. If not, drop to fewer muscles/vessels or try three's `BatchedMesh` before going further. |
 | 1. Pipeline | `npm run anatomy` builds all systems, `structures.json`, report, credits | ≥ 80% of structures matched to a glossary term; report lists the rest (**done; 66%, see above**) |
 | 2. Viewer | systems, peel/x-ray, tap card, search, list mode, deep links, topic-page links | Typecheck, lint, tests pass; checked at iPad and phone sizes; no console errors |
-| 3. Study | "Practice this", identify quiz, v3 storage + migration test, notebook | Tests for the quiz queue and the migration |
+| 3. Study | "Practice this", identify quiz, v4 storage + migration test, notebook | Tests for the quiz queue and the migration (**done**) |
 | 4. Nursing overlays | injection sites, auscultation points, quadrants (hand-placed pins) | She has checked every pin |
 
 ---

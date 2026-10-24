@@ -14,6 +14,8 @@ export interface ViewerProps {
   selected: string | null;
   /** Hide everything but the selected structure. */
   isolate: boolean;
+  /** The identify quiz: fill the selected structure with the accent and fade the rest further, so it can't be missed. */
+  strong?: boolean;
   focus: Focus | null;
   onPick: (fma: string | null) => void;
   /** "Reset view" was pressed: the parent drops its focus; the viewer frames the whole body. */
@@ -30,7 +32,7 @@ const TAP_SLOP = 8;
 const noRaycast = () => {};
 
 // Memoised: typing in the search box re-renders the page, and the 3D scene needn't follow.
-export default memo(function Viewer({ systems, layers, selected, isolate, focus, onPick, onReset, showFps, sheet, children }: ViewerProps) {
+export default memo(function Viewer({ systems, layers, selected, isolate, strong = false, focus, onPick, onReset, showFps, sheet, children }: ViewerProps) {
   const colors = useThemeColors(["--color-accent", ...systems.flatMap((s) => [s.color, s.veinColor ?? s.color])]);
   const reduced = useReducedMotion();
   const [fitKey, setFitKey] = useState(0);
@@ -69,6 +71,7 @@ export default memo(function Viewer({ systems, layers, selected, isolate, focus,
                 xray={layers[s.id] === "xray"}
                 selected={selected}
                 isolate={isolate}
+                strong={strong}
                 onPick={onPick}
                 onLoaded={() => setLoaded((n) => n + 1)}
               />
@@ -178,6 +181,7 @@ function System({
   xray,
   selected,
   isolate,
+  strong,
   onPick,
   onLoaded,
 }: {
@@ -188,6 +192,7 @@ function System({
   xray: boolean;
   selected: string | null;
   isolate: boolean;
+  strong: boolean;
   onPick: (fma: string | null) => void;
   onLoaded: () => void;
 }) {
@@ -218,19 +223,19 @@ function System({
       // Isolate hides the rest; x-ray shows a system faintly and lets taps through to what's behind it.
       const hidden = isolate && others;
       const seeThrough = xray && !isSelected;
-      const opacity = seeThrough ? 0.12 : others ? 0.15 : 1;
+      const opacity = seeThrough ? 0.12 : others ? (strong ? 0.07 : 0.15) : 1;
       o.visible = !hidden;
       o.raycast = hidden || seeThrough ? noRaycast : Mesh.prototype.raycast;
-      mat.color.set(o.userData.vein ? veinColor : color);
+      mat.color.set(isSelected && strong ? accent : o.userData.vein ? veinColor : color);
       mat.emissive.set(isSelected ? accent : "#000000");
-      mat.emissiveIntensity = isSelected ? 0.55 : 0;
+      mat.emissiveIntensity = isSelected ? (strong ? 0.35 : 0.55) : 0;
       if (mat.transparent !== opacity < 1) mat.needsUpdate = true;
       mat.transparent = opacity < 1;
       mat.opacity = opacity;
       mat.depthWrite = opacity === 1;
     });
     invalidate();
-  }, [scene, selected, isolate, xray, color, veinColor, accent, invalidate]);
+  }, [scene, selected, isolate, strong, xray, color, veinColor, accent, invalidate]);
 
   return (
     <primitive

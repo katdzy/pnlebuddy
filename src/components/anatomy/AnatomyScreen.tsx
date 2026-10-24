@@ -3,11 +3,13 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { anatomyQuery, parseAnatomyUrl, type GlossaryTerm, type Structure } from "@/lib/anatomy";
+import { anatomyQuery, bookNote, buildIdentifyRound, dueCount, isQuizzable, parseAnatomyUrl, type GlossaryTerm, type Structure } from "@/lib/anatomy";
+import { actions, newId, useNow, useStudyStore } from "@/lib/store";
 import { PageHeader } from "../look/PageHeader";
 import { Placeholder } from "../Placeholder";
 import { useAnatomyData, useGlossary, useInitialSearch, useShowFps, useWide, type AnatomyData } from "./data";
 import { FindBox } from "./FindBox";
+import { IdentifyQuiz, type QuizScope, type QuizState } from "./IdentifyQuiz";
 import { StructureCard } from "./StructureCard";
 import { StructureList } from "./StructureList";
 import type { Focus, Layer, Selection } from "./types";
@@ -24,6 +26,9 @@ export function AnatomyScreen() {
 }
 
 const NEXT: Record<Layer, Layer> = { hidden: "shown", shown: "xray", xray: "hidden" };
+/** Structures per identify round. */
+const ROUND = 10;
+const noPick = () => {};
 
 function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) {
   const { manifest, structures, byFma } = data;
@@ -43,7 +48,8 @@ function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) 
     if (s && layers[s.system] === "hidden") layers[s.system] = "shown";
     const selection: Selection | null = s ? { kind: "structure", fma: s.fma } : url.term ? { kind: "term", term: url.term } : null;
     const focus: Focus | null = s ? { center: s.center, radius: s.radius, key: 0 } : null;
-    return { layers, selection, focus };
+    const quiz: QuizState | null = url.quiz && (url.quiz === "notebook" || systems[url.quiz]) ? { step: "setup", scope: url.quiz } : null;
+    return { layers, selection, focus, quiz };
   }, [initialSearch, order, systems, byFma]);
 
   const [layersState, setLayers] = useState<Record<string, Layer> | null>(null);
@@ -52,22 +58,54 @@ function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) 
   const [isolate, setIsolate] = useState(false);
   const [query, setQuery] = useState("");
   const [listMode, setListMode] = useState(false);
+  const [quizState, setQuiz] = useState<QuizState | null | undefined>(undefined);
 
   const layers = layersState ?? opened.layers;
   const selection = selectionState === undefined ? opened.selection : selectionState;
   const focus = focusState === undefined ? opened.focus : focusState;
+  const quiz = quizState === undefined ? opened.quiz : quizState;
   const structure = selection?.kind === "structure" ? byFma.get(selection.fma) ?? null : null;
   const term = selection?.kind === "term" ? selection.term : null;
 
-  // Keep the view in the URL, so a topic page can link to it and reloading keeps her place. (?fps stays.)
+  // The identify quiz: what it can ask about, per system and from her notebook's misses.
+  const store = useStudyStore();
+  const time = useNow();
+  const states = store?.data.anatomy;
+  const mistakes = store?.data.mistakes;
+  const quizzable = useMemo(() => structures.filter(isQuizzable), [structures]);
+  const scopes = useMemo((): QuizScope[] => {
+    if (!states || !mistakes) return [];
+    const missed = new Set(mistakes.filter((m) => m.kind === "anatomy" && !m.resolvedAt).map((m) => m.itemId));
+    const list = [
+      ...(missed.size ? [{ id: "notebook", label: "Your notebook", pool: structures.filter((s) => missed.has(s.fma)) }] : []),
+      ...order.map((id) => ({ id, label: systems[id].label, pool: quizzable.filter((s) => s.system === id) })),
+    ].filter((x) => x.pool.length > 0);
+    return list.map((x) => ({ ...x, due: dueCount(x.pool, states, time) }));
+  }, [states, mistakes, structures, quizzable, order, systems, time]);
+  const quizScope = quiz ? scopes.find((x) => x.id === quiz.scope) : undefined;
+  const plan = useMemo(
+    () => (quizScope && states ? buildIdentifyRound(quizScope.pool, states, time, ROUND) : { fmas: [], due: 0, fresh: 0, early: 0 }),
+    [quizScope, states, time],
+  );
+  const asking = quiz?.step === "round" && quiz.index < quiz.fmas.length ? byFma.get(quiz.fmas[quiz.index]) ?? null : null;
+  // Fly to each structure as it's asked, from a little further out than "Zoom to it" so there's context to go on.
+  const askKey = quiz?.step === "round" ? quiz.startedAt + quiz.index : 0;
+  const viewFocus = useMemo(
+    (): Focus | null => (asking ? { center: asking.center, radius: Math.max(asking.radius * 1.6, 0.1), key: askKey } : focus),
+    [asking, askKey, focus],
+  );
+
+  // Keep the view in the URL, so a topic page can link to it and reloading keeps her place. (?fps stays.) Not while
+  // quizzing: the address would give the answer away.
   useEffect(() => {
+    if (quiz) return;
     const shown = order.filter((id) => layers[id] === "shown");
     const xray = order.filter((id) => layers[id] === "xray");
     const q = anatomyQuery({ shown, xray, ...(structure ? { fma: structure.fma } : term ? { term } : {}) });
     const fps = new URLSearchParams(window.location.search).has("fps") ? `${q ? "&" : ""}fps` : "";
     const next = `${window.location.pathname}${q || fps ? `?${q}${fps}` : ""}`;
     if (next !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(window.history.state, "", next);
-  }, [layers, structure, term, order]);
+  }, [layers, structure, term, order, quiz]);
 
   const select = useCallback((next: Selection | null) => {
     setSelection(next);
@@ -109,7 +147,72 @@ function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) 
       ) : null,
     [selection, structure, term, systems, glossary, isolate, select],
   );
+
+  /* ── Identify quiz ── */
+
+  function openQuiz() {
+    const first = structure?.system ?? order.find((id) => layers[id] === "shown" && quizzable.some((s) => s.system === id)) ?? order[0];
+    setListMode(false);
+    select(null);
+    setQuiz({ step: "setup", scope: first });
+  }
+  function startRound() {
+    if (!quiz || !plan.fmas.length) return;
+    // Show only the systems this round asks about; her own view comes back when it ends.
+    const before = quiz.step === "round" ? quiz.before : layers;
+    const asked = new Set(plan.fmas.map((f) => byFma.get(f)?.system));
+    setLayers(Object.fromEntries(order.map((id) => [id, asked.has(id) ? "shown" : "hidden"])));
+    setIsolate(false);
+    setQuiz({ step: "round", scope: quiz.scope, id: newId(), startedAt: Date.now(), fmas: plan.fmas, index: 0, picks: {}, before });
+  }
+  function answer(choice: Structure) {
+    if (quiz?.step !== "round" || !asking || quiz.picks[asking.fma]) return;
+    const correct = choice.fma === asking.fma;
+    const system = systems[asking.system];
+    setQuiz({ ...quiz, picks: { ...quiz.picks, [asking.fma]: choice.fma } });
+    actions.answerIdentify(asking.fma, system.topicId, correct);
+    if (correct) return;
+    const entry = asking.term && glossary.status === "ready" ? glossary.byTerm.get(asking.term) : undefined;
+    actions.recordAnatomyMistake({
+      fma: asking.fma,
+      topicId: system.topicId,
+      system: system.label,
+      sessionId: quiz.id,
+      chosen: choice.name,
+      answer: asking.name,
+      book: entry ? bookNote(asking, entry) : "",
+    });
+  }
+  /** Leave the quiz and put her layers back; with `show`, open that structure's card. */
+  function closeQuiz(show?: Structure) {
+    if (quiz?.step === "round") {
+      const before = quiz.before;
+      setLayers(show && before[show.system] !== "shown" ? { ...before, [show.system]: "shown" } : before);
+    }
+    setQuiz(null);
+    select(show ? { kind: "structure", fma: show.fma } : null);
+    setFocus(show ? { center: show.center, radius: show.radius, key: Date.now() } : null);
+  }
+
   const anyShown = order.some((id) => layers[id] !== "hidden");
+  const panel = quiz ? (
+    <IdentifyQuiz
+      quiz={quiz}
+      scopes={scopes}
+      plan={plan}
+      byFma={byFma}
+      candidates={quizzable}
+      glossary={glossary}
+      onScope={(scope) => setQuiz({ step: "setup", scope })}
+      onStart={startRound}
+      onPick={answer}
+      onNext={() => quiz.step === "round" && setQuiz({ ...quiz, index: quiz.index + 1 })}
+      onShow={closeQuiz}
+      onClose={() => closeQuiz()}
+    />
+  ) : (
+    card
+  );
 
   return (
     <div>
@@ -119,56 +222,65 @@ function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) 
         book&apos;s entry for it.
       </p>
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <FindBox
-          query={query}
-          onQuery={setQuery}
-          structures={structures}
-          terms={glossary.status === "ready" ? glossary.terms : []}
-          systems={systems}
-          suggest={!listMode}
-          onStructure={chooseStructure}
-          onTerm={chooseTerm}
-        />
-        <div role="group" aria-label="View" className="flex gap-2">
-          {[
-            { list: false, label: "3D" },
-            { list: true, label: "List" },
-          ].map((v) => (
-            <button key={v.label} type="button" aria-pressed={listMode === v.list} className={`chip ${listMode === v.list ? "chip-on" : ""}`} onClick={() => setListMode(v.list)}>
-              {v.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {!quiz && (
+        <>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <FindBox
+              query={query}
+              onQuery={setQuery}
+              structures={structures}
+              terms={glossary.status === "ready" ? glossary.terms : []}
+              systems={systems}
+              suggest={!listMode}
+              onStructure={chooseStructure}
+              onTerm={chooseTerm}
+            />
+            <div className="flex flex-wrap gap-2">
+              <div role="group" aria-label="View" className="flex gap-2">
+                {[
+                  { list: false, label: "3D" },
+                  { list: true, label: "List" },
+                ].map((v) => (
+                  <button key={v.label} type="button" aria-pressed={listMode === v.list} className={`chip ${listMode === v.list ? "chip-on" : ""}`} onClick={() => setListMode(v.list)}>
+                    {v.label}
+                  </button>
+                ))}
+              </div>
+              <button type="button" className="btn btn-secondary min-h-11 px-4 text-small" disabled={!scopes.length} onClick={openQuiz}>
+                Quiz me
+              </button>
+            </div>
+          </div>
 
-      <div role="group" aria-label="Body systems" className="mt-4 flex flex-wrap gap-2">
-        {order.map((id) => {
-          const s = systems[id];
-          const layer = layers[id] ?? "hidden";
-          const now = { shown: "shown", xray: "see-through", hidden: "hidden" }[layer];
-          const then = { shown: "see through it", xray: "hide it", hidden: "show it" }[layer];
-          return (
-            <button
-              key={id}
-              type="button"
-              className={`chip ${layer === "shown" ? "chip-on" : layer === "xray" ? "chip-xray" : ""}`}
-              aria-label={`${s.label}: ${now}. Tap to ${then}.`}
-              onClick={() => cycle(id)}
-            >
-              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: `var(${s.color})` }} />
-              {s.label}
-              {layer === "xray" && <span className="font-normal">· see-through</span>}
-            </button>
-          );
-        })}
-      </div>
-      <p className="mt-2 text-meta text-ink-muted">Tap a system once to show it, again to see through it, again to hide it.</p>
+          <div role="group" aria-label="Body systems" className="mt-4 flex flex-wrap gap-2">
+            {order.map((id) => {
+              const s = systems[id];
+              const layer = layers[id] ?? "hidden";
+              const now = { shown: "shown", xray: "see-through", hidden: "hidden" }[layer];
+              const then = { shown: "see through it", xray: "hide it", hidden: "show it" }[layer];
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`chip ${layer === "shown" ? "chip-on" : layer === "xray" ? "chip-xray" : ""}`}
+                  aria-label={`${s.label}: ${now}. Tap to ${then}.`}
+                  onClick={() => cycle(id)}
+                >
+                  <span aria-hidden="true" className="size-2.5 rounded-full" style={{ background: `var(${s.color})` }} />
+                  {s.label}
+                  {layer === "xray" && <span className="font-normal">· see-through</span>}
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-meta text-ink-muted">Tap a system once to show it, again to see through it, again to hide it.</p>
+        </>
+      )}
 
       <div className={`mt-4 ${wide ? "grid grid-cols-[minmax(0,1fr)_20rem] items-start gap-6" : ""}`}>
         <div>
           {!wide && listMode && card && <div className="anatomy-card mb-4">{card}</div>}
-          {listMode ? (
+          {listMode && !quiz ? (
             <StructureList
               order={order}
               systems={systems}
@@ -182,21 +294,22 @@ function Anatomy({ data }: { data: Extract<AnatomyData, { status: "ready" }> }) 
             <Viewer
               systems={viewerSystems}
               layers={layers}
-              selected={structure?.fma ?? null}
+              selected={asking?.fma ?? structure?.fma ?? null}
               isolate={isolate && Boolean(structure)}
-              focus={focus}
-              onPick={onPick}
+              strong={Boolean(asking)}
+              focus={viewFocus}
+              onPick={quiz ? noPick : onPick}
               onReset={onReset}
               showFps={showFps}
-              sheet={wide ? null : card}
+              sheet={wide ? null : panel}
             >
               {!anyShown && <p className="pointer-events-none absolute inset-0 grid place-items-center px-6 text-center text-ink-muted">Turn on a system above to see it.</p>}
             </Viewer>
           )}
         </div>
         {wide && (
-          <aside aria-live="polite" className="sticky top-6">
-            {card ?? (
+          <aside aria-live={quiz ? undefined : "polite"} className="sticky top-6">
+            {panel ?? (
               <p className="text-small text-ink-muted">
                 Tap a structure, or find one by name. Its name and your book&apos;s glossary entry show here.
               </p>

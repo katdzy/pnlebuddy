@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 import { ANAPHY_TOPICS } from "@/content/taxonomy";
-import { printedPages, type GlossaryTerm, type Structure } from "@/lib/anatomy";
-import { CrossIcon } from "../Icons";
+import { printedPages, questionsMentioning, termPhrases, type GlossaryTerm, type Structure } from "@/lib/anatomy";
+import { useContent } from "@/lib/content";
+import { plural } from "@/lib/copy";
+import { actions, useStudyStore } from "@/lib/store";
+import { ArrowRightIcon, CrossIcon } from "../Icons";
 import type { Glossary } from "./data";
 import type { AnatomySystem } from "./types";
 
@@ -51,7 +56,7 @@ export function StructureCard({
       {!structure && <p className="mt-2 text-small text-ink-soft">Not in the 3D model: BodyParts3D doesn&apos;t include it.</p>}
 
       {termName && glossary.status === "loading" && <p className="mt-4 text-small text-ink-muted">Opening your book&apos;s glossary…</p>}
-      {entry && <Entry entry={entry} structure={structure} />}
+      {entry && <BookEntry entry={entry} structure={structure} />}
       {structure && !structure.term && (
         <p className="mt-4 text-small text-ink-soft">Your book&apos;s glossary has no entry for this.</p>
       )}
@@ -73,11 +78,62 @@ export function StructureCard({
           </button>
         </div>
       )}
+
+      {entry && <Practice entry={entry} />}
     </div>
   );
 }
 
-function Entry({ entry, structure }: { entry: GlossaryTerm; structure: Structure | null }) {
+/** Most practice sessions are about this long; the rest wait for the next time. */
+const PRACTICE_MAX = 25;
+
+/** "Practice this": questions that mention the book term, her A&P book's own first (docs/ANATOMY_3D_PLAN.md §5). */
+function Practice({ entry }: { entry: GlossaryTerm }) {
+  const router = useRouter();
+  const { bank } = useContent();
+  const store = useStudyStore();
+  const [blocked, setBlocked] = useState(false);
+  const progress = store?.data.progress;
+  const mentions = useMemo(
+    () => (bank && progress ? questionsMentioning(termPhrases(entry), bank.questions, (id) => progress[id]?.lastAnsweredAt ?? 0) : null),
+    [bank, progress, entry],
+  );
+  if (!mentions) return null;
+  const n = mentions.ids.length;
+
+  function start() {
+    if (store?.data.activeSession) {
+      setBlocked(true);
+      return;
+    }
+    actions.startPicked(`Practice: ${entry.term}`, mentions!.ids.slice(0, PRACTICE_MAX));
+    router.push("/study");
+  }
+
+  return (
+    <section className="mt-4 border-t border-line pt-4" aria-label="Practice">
+      <p className="text-small text-ink-soft">
+        {n === 0
+          ? `None of your questions mention “${entry.term}” yet.`
+          : `${plural(n, "question")} ${n === 1 ? "mentions" : "mention"} “${entry.term}”${mentions.fromBook ? `, ${mentions.fromBook} from your A&P book` : ""}.`}
+      </p>
+      {n > 0 && (
+        <button type="button" className="btn btn-secondary mt-2 min-h-11" onClick={start}>
+          Practice {n > PRACTICE_MAX ? `${PRACTICE_MAX} of them` : n === 1 ? "it" : "them"}
+          <ArrowRightIcon size={20} />
+        </button>
+      )}
+      {blocked && (
+        <p role="status" className="mt-2 text-small text-ink-soft">
+          Finish or end the session in progress first (it&apos;s waiting on Today).
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Her book's glossary entry, word for word, saying how it relates to the structure. */
+export function BookEntry({ entry, structure }: { entry: GlossaryTerm; structure: Structure | null }) {
   const how = structure?.how ?? "exact";
   const pages = printedPages(entry.pages);
   return (

@@ -36,8 +36,8 @@ Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DI
 - **Loading** `src/lib/content.ts`: questions for all papers load at start; flashcards load per paper on demand.
 - **Logic** is pure and tested in `src/lib/`: `scheduler.ts` (Leitner boxes for questions), `cards.ts` (Anki-like SRS),
   `grading.ts` (75% average / 60% floor), `session.ts` (practice, topic drills, quizzes incl. exam mode, notebook),
-  `insights.ts` (topic and paper stats), `storage.ts` (versioned localStorage, v1→v2→v3 migration; v3 added her
-  `topicsDone` checklist), `look.ts` (themes, covers, icons, paper colours; see `DESIGN.md`).
+  `insights.ts` (topic and paper stats), `storage.ts` (versioned localStorage, v1→v2→v3→v4 migration; v3 added her
+  `topicsDone` checklist, v4 the 3D identify quiz's `anatomy` states and `"anatomy"` notebook entries), `look.ts` (themes, covers, icons, paper colours; see `DESIGN.md`).
 - **Screens** `src/components/`: today, tracker, topic (reviewer + "read in your files"), quiz, study (focus mode),
   cards, notebook, settings, anatomy (3D body: `Viewer` is three.js, loaded only there; page logic in
   `src/lib/anatomy.ts`; see `docs/ANATOMY_3D_PLAN.md`).
@@ -53,7 +53,7 @@ Her review folder defaults to `~/Fel Reviewers/RN2027`; override with `RN2027_DI
    where the item really came from. Don't mark anything `clinicallyReviewed`.
 3. **Reviewers** that Claude drafts must say so at the top (see the sample `np3-fluids-electrolytes.md`) and should be
    based on her own notes: the topic page lists which files and pages cover each topic (`reading.json`).
-4. **Her progress lives in localStorage** under `pnlebuddy:v2` (the key stays even though data is now version 3). Any
+4. **Her progress lives in localStorage** under `pnlebuddy:v2` (the key stays even though data is now version 4). Any
    change to `StudyData` needs a migration in `storage.ts` and a test. Never drop her notebook. The look (theme,
    covers, icons, motto) is separate, under `pnlebuddy:look`; cover photos are in IndexedDB (`pnlebuddy-media`).
 7. **Visual system** is documented in `DESIGN.md`. Colours come from tokens only, so every theme keeps working.

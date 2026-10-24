@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { topicLabel } from "@/content/taxonomy";
 import { formatDate } from "@/lib/copy";
@@ -23,6 +24,7 @@ function MistakeItem({ entry: m }: { entry: MistakeEntry }) {
   const [note, setNote] = useState(m.note);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isCard = m.kind === "card";
+  const isAnatomy = m.kind === "anatomy";
   const label = m.snapshot.topicId === "legacy" ? "Older note" : topicLabel(m.snapshot.topicId);
 
   return (
@@ -58,9 +60,17 @@ function MistakeItem({ entry: m }: { entry: MistakeEntry }) {
         </div>
       </div>
 
+      {isAnatomy && (
+        <p className="mt-3 text-small">
+          <Link href={`/anatomy?f=${m.itemId}`} className="link">
+            See it in 3D
+          </Link>
+        </p>
+      )}
+
       {m.snapshot.rationale && (
         <details className="mt-3 text-small">
-          <summary className="cursor-pointer font-semibold text-accent-ink">Rationale</summary>
+          <summary className="cursor-pointer font-semibold text-accent-ink">{isAnatomy ? "Your book" : "Rationale"}</summary>
           <p className="mt-1 max-w-[70ch] text-ink-soft">{m.snapshot.rationale}</p>
         </details>
       )}
@@ -75,7 +85,7 @@ function MistakeItem({ entry: m }: { entry: MistakeEntry }) {
               setEditing(false);
             }}
           >
-            {!isCard && (
+            {m.kind === "question" && (
               <label className="block text-small font-semibold">
                 What tripped you up
                 <select
@@ -107,7 +117,7 @@ function MistakeItem({ entry: m }: { entry: MistakeEntry }) {
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-small text-ink-soft">
-              {!isCard && <span className="font-semibold text-ink">{MISTAKE_CATEGORIES.find((c) => c.id === m.category)?.label}. </span>}
+              {m.kind === "question" && <span className="font-semibold text-ink">{MISTAKE_CATEGORIES.find((c) => c.id === m.category)?.label}. </span>}
               {m.note ? `“${m.note}”` : <span className="text-ink-muted">No note yet.</span>}
             </p>
             <div className="flex flex-wrap gap-1">

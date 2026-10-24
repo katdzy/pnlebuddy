@@ -4,6 +4,7 @@
  */
 
 import { getTopic, TOPICS, type PaperId } from "@/content/taxonomy";
+import { rateIdentify } from "./anatomy";
 import type { BankIndex } from "./bank";
 import { dayOf, rateCard } from "./cards";
 import type { Flashcard, Question } from "./content-types";
@@ -111,6 +112,16 @@ export function startListSession(
     activeSession: newSession(id, mode, mode === "mistakes" ? "Balikan: your mistakes" : "Saved questions", ids, now, {
       reasons: Object.fromEntries(ids.map((q) => [q, mode === "mistakes" ? "missed" : "extra"])),
     }),
+  };
+}
+
+/** Start from questions picked elsewhere, e.g. "Practice this" on the 3D body's card. */
+export function startPickedSession(data: StudyData, index: BankIndex, title: string, questionIds: string[], now: number, id: string, limit = 25): StudyData {
+  const ids = [...new Set(questionIds)].filter((q) => index.question(q)).slice(0, limit);
+  if (ids.length === 0) return data;
+  return {
+    ...data,
+    activeSession: newSession(id, "topic", title, ids, now, { reasons: Object.fromEntries(ids.map((q) => [q, "extra"])) }),
   };
 }
 
@@ -412,4 +423,52 @@ export function setTopicDone(data: StudyData, topicId: string, done: boolean, no
   if (done) topicsDone[topicId] = now;
   else delete topicsDone[topicId];
   return { ...data, topicsDone };
+}
+
+/* ── 3D identify quiz ────────────────────────────────────────────────── */
+
+export function answerIdentify(data: StudyData, fma: string, topicId: string, correct: boolean, now: number): StudyData {
+  return { ...data, anatomy: { ...data.anatomy, [fma]: rateIdentify(data.anatomy[fma], topicId, correct, now) } };
+}
+
+export interface AnatomyMistakeInput {
+  fma: string;
+  topicId: string;
+  /** The body system's label, e.g. "Skeleton". */
+  system: string;
+  sessionId: string;
+  /** The name she chose, and the structure's name. */
+  chosen: string;
+  answer: string;
+  /** Her book's glossary entry for it, as shown after answering (empty if the book has none). */
+  book: string;
+}
+
+/** Save a missed structure. Plain text, so the notebook reads the same if the models are rebuilt. One open entry each. */
+export function recordAnatomyMistake(data: StudyData, input: AnatomyMistakeInput, now: number, id: string): StudyData {
+  if (data.mistakes.some((m) => m.kind === "anatomy" && m.itemId === input.fma && !m.resolvedAt)) return data;
+  return {
+    ...data,
+    mistakes: [
+      ...data.mistakes,
+      {
+        id,
+        kind: "anatomy",
+        itemId: input.fma,
+        sessionId: input.sessionId,
+        chosen: [],
+        category: "concept",
+        note: "",
+        createdAt: now,
+        resolvedAt: null,
+        snapshot: {
+          topicId: input.topicId,
+          prompt: `Name the structure lit up in the 3D body (${input.system}).`,
+          chosenText: input.chosen,
+          answerText: input.answer,
+          rationale: input.book,
+        },
+      },
+    ],
+  };
 }

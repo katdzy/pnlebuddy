@@ -222,7 +222,13 @@ function Topic({ data, bank, content, now, topicId, reviewerHtml, reading }: Rea
               <ul className="mt-3 space-y-3">
                 {mistakes.slice(0, 4).map((m) => (
                   <li key={m.id} className="rounded-control border border-line bg-surface p-3 text-small">
-                    <p className="line-clamp-3">{m.kind === "card" ? m.snapshot.prompt.replace(/<[^>]+>/g, " ") : m.snapshot.prompt}</p>
+                    <p className="line-clamp-3">
+                      {m.kind === "card"
+                        ? m.snapshot.prompt.replace(/<[^>]+>/g, " ")
+                        : m.kind === "anatomy"
+                          ? `In the 3D body: ${m.snapshot.answerText}`
+                          : m.snapshot.prompt}
+                    </p>
                     {m.note && <p className="mt-1 text-ink-soft">“{m.note}”</p>}
                   </li>
                 ))}

@@ -3,7 +3,8 @@
  *
  * BodyParts3D uses FMA names ("Distal phalanx of left big toe", "Anterior leaflet of mitral valve"); the book uses
  * textbook terms. A match says how it was found, so the info card can say it honestly:
- *   exact    the structure's own name (without left/right) is a term or an aka
+ *   exact    the structure's own name (without left/right) is a term or an aka. A term that names a side itself
+ *            ("right coronary artery", "left atrioventricular valve") only matches that side.
  *   general  a less specific name is: "Fifth thoracic vertebra" → "thoracic vertebrae", "Distal phalanx" → "phalanges"
  *   part     it's part of something the book defines: "Anterior leaflet of mitral valve" → "mitral valve"
  * A general or part match must also be a term the book places in the same body system, because a word can mean
@@ -72,11 +73,14 @@ const QUALIFIERS = /^(muscle|tooth|bone|proper|capitis|cervicis|colli|thoracis|l
 const SERIES =
   /\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|secondary|upper|lower)\b/g;
 
-export function normalise(s: string): string {
+const SIDED = /\b(left|right)\b/i;
+
+/** Lower case, no brackets or filler words; left/right go too unless `keepSide`. */
+export function normalise(s: string, keepSide = false): string {
   return s
     .toLowerCase()
     .replace(/\([^)]*\)|\[[^\]]*\]/g, " ")
-    .replace(/\b(left|right|the|set of)\b/g, " ")
+    .replace(keepSide ? /\b(the|set of)\b/g : /\b(left|right|the|set of)\b/g, " ")
     .replace(/\bdisk\b/g, "disc")
     .replace(/[^a-z0-9' -]/g, " ")
     .replace(/\s+/g, " ")
@@ -115,18 +119,21 @@ export function buildIndex(entries: GlossaryEntry[]): Index {
   const index: Index = new Map();
   for (const e of entries) {
     for (const name of [e.term, ...e.aka]) {
-      const k = normalise(name);
+      // "Right coronary artery" is filed with its side, so the left one can't be found under "coronary artery".
+      const k = normalise(name, SIDED.test(name));
       if (k && !index.has(k)) index.set(k, e);
     }
   }
   return index;
 }
 
+/** `s` is normalised with its side kept: a term filed with that side first, then the name without it. */
 function lookup(index: Index, s: string): GlossaryEntry | null {
-  const k = normalise(SYNONYMS[s] ?? s);
-  for (const v of variants(k)) {
-    const hit = index.get(v);
-    if (hit) return hit;
+  for (const k of new Set([s, normalise(s)])) {
+    for (const v of variants(SYNONYMS[k] ?? k)) {
+      const hit = index.get(v);
+      if (hit) return hit;
+    }
   }
   return null;
 }
@@ -152,21 +159,22 @@ function generalisations(s: string): string[] {
  * general and part matches must be placed there by the book too.
  */
 export function matchTerm(name: string, index: Index, topicId?: string): TermMatch | null {
-  const s = normalise(name);
+  const s = normalise(name, true);
+  const plain = normalise(name);
   const exact = lookup(index, s);
   if (exact) return { term: exact.term, how: "exact" };
 
   // A term the book's index doesn't place in a chapter can't contradict the structure's system.
   const fits = (e: GlossaryEntry | null) => (e && (!topicId || !e.topicId || e.topicId === topicId) ? e : null);
   for (const [re, family, how] of FAMILIES) {
-    const hit = re.test(s) ? fits(lookup(index, family)) : null;
+    const hit = re.test(plain) ? fits(lookup(index, family)) : null;
     if (hit) return { term: hit.term, how };
   }
 
   // "X of Y": X is the structure itself when it's specific ("distal phalanx of big toe"), else it's part of Y.
   const of = /^(.+?) of (.+)$/.exec(s);
   const head = of ? of[1] : s;
-  if (of?.[2] === "foot" && HAND_ONLY.test(head.replace(SERIES, "").trim())) return null;
+  if (of && normalise(of[2]) === "foot" && HAND_ONLY.test(normalise(head).replace(SERIES, "").trim())) return null;
   if (!/^(proximal|middle|distal) part$/.test(head)) {
     for (const g of [head, ...generalisations(head)]) {
       if (TOO_GENERIC.has(g)) continue;
@@ -176,7 +184,7 @@ export function matchTerm(name: string, index: Index, topicId?: string): TermMat
   }
   if (of) {
     const whole = matchTerm(of[2], index, topicId);
-    if (whole && fits(index.get(normalise(whole.term)) ?? null)) return { term: whole.term, how: "part" };
+    if (whole && fits(index.get(normalise(whole.term, SIDED.test(whole.term))) ?? null)) return { term: whole.term, how: "part" };
   }
   return null;
 }

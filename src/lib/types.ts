@@ -49,8 +49,11 @@ export type MistakeCategory = (typeof MISTAKE_CATEGORIES)[number]["id"];
 
 export interface MistakeEntry {
   id: string;
-  /** "question" from practice or quizzes, "card" from flashcards. */
-  kind: "question" | "card";
+  /**
+   * "question" from practice or quizzes, "card" from flashcards, "anatomy" from the 3D identify quiz (itemId is the
+   * structure's FMA id; the snapshot holds plain text like a question's).
+   */
+  kind: "question" | "card" | "anatomy";
   itemId: string;
   sessionId: string;
   chosen: ChoiceId[];
@@ -122,7 +125,7 @@ export interface Profile {
 }
 
 export interface StudyData {
-  version: 3;
+  version: 4;
   profile: Profile;
   progress: Record<string, QuestionProgress>;
   attempts: Attempt[];
@@ -141,4 +144,9 @@ export interface StudyData {
    * Self-reported, and kept apart from performance (v3).
    */
   topicsDone: Record<string, number>;
+  /**
+   * The 3D identify quiz: structure (FMA id) → review state, scheduled like a flashcard. The topic index is the A&P
+   * topic of the structure's body system (v4).
+   */
+  anatomy: Record<string, CardState>;
 }

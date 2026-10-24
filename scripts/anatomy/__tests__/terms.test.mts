@@ -12,6 +12,9 @@ const index = buildIndex([
   { term: "canaliculi", aka: [], topicId: "int-ap-skeletal" },
   { term: "inferior gemellus", aka: [], topicId: "int-ap-muscular" },
   { term: "sulci", aka: [], topicId: "int-ap-nervous" },
+  { term: "atrium", aka: ["atria"], topicId: "int-ap-cardiovascular" },
+  { term: "left coronary artery", aka: [], topicId: "int-ap-cardiovascular" },
+  { term: "right coronary artery", aka: [], topicId: "int-ap-cardiovascular" },
 ]);
 
 describe("linking BodyParts3D names to the glossary", () => {
@@ -30,6 +33,19 @@ describe("linking BodyParts3D names to the glossary", () => {
       term: "left atrioventricular valve",
       how: "part",
     });
+  });
+
+  it("keeps a side that is part of the book's term", () => {
+    expect(matchTerm("Trunk of right coronary artery", index, "int-ap-cardiovascular")).toEqual({ term: "right coronary artery", how: "part" });
+    expect(matchTerm("Marginal branch of right coronary artery", index, "int-ap-cardiovascular")).toEqual({
+      term: "right coronary artery",
+      how: "part",
+    });
+    expect(matchTerm("Circumflex branch of left coronary artery", index, "int-ap-cardiovascular")).toEqual({
+      term: "left coronary artery",
+      how: "part",
+    });
+    expect(matchTerm("Wall of left atrium", index, "int-ap-cardiovascular")).toEqual({ term: "atrium", how: "part" });
   });
 
   it("refuses words the book defines in another sense or another system", () => {
